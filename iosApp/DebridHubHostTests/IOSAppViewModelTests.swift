@@ -85,6 +85,55 @@ final class IOSAppViewModelTests: XCTestCase {
         }
     }
 
+    func testBootstrapWithAuthenticatedSessionRefreshesAccountAndReminders() async {
+        let service = FakeIOSAppService(
+            startSession: AuthorizationSessionState(
+                userCode: "ABCD-1234",
+                verificationURL: "https://real-debrid.com/device",
+                directVerificationURL: nil,
+                expiresAt: nil,
+                pollIntervalSeconds: 10
+            ),
+            pollResults: [.pending]
+        )
+        service.isAuthenticatedValue = true
+        service.refreshAccountStatusResult = .success(makeSampleAccountStatus())
+        service.previewRemindersResult = .success([
+            ScheduledReminder(
+                fireAt: Kotlinx_datetimeInstant.companion.fromEpochSeconds(
+                    epochSeconds: 1_776_675_600,
+                    nanosecondAdjustment: 0
+                ),
+                message: "3 days left"
+            )
+        ])
+
+        let viewModel = await MainActor.run {
+            IOSAppViewModel(
+                service: service,
+                notificationPermissionProvider: StubNotificationPermissionStateProvider(state: .granted),
+                settingsOpener: StubSettingsOpener(),
+                autoBootstrap: true
+            )
+        }
+
+        await waitUntil {
+            await MainActor.run {
+                !viewModel.isCheckingSession && viewModel.accountStatus != nil
+            }
+        }
+
+        await MainActor.run {
+            XCTAssertTrue(viewModel.isAuthenticated)
+            XCTAssertNotNil(viewModel.accountStatus)
+            XCTAssertEqual(1, viewModel.scheduledReminders.count)
+            XCTAssertEqual(.granted, viewModel.notificationPermissionState)
+            XCTAssertEqual(1, service.refreshAccountStatusCallCount)
+            XCTAssertEqual(1, service.syncRemindersCallCount)
+            XCTAssertEqual(1, service.previewRemindersCallCount)
+        }
+    }
+
     func testStartAuthorizationSetsSessionState() async {
         let service = FakeIOSAppService(
             startSession: AuthorizationSessionState(
@@ -714,6 +763,8 @@ private final class FakeIOSAppService: IOSAppServiceProtocol {
     var previewRemindersResult: Result<[ScheduledReminder], Error> = .success([])
     var pollAuthorizationCallCount = 0
     var refreshAccountStatusCallCount = 0
+    var syncRemindersCallCount = 0
+    var previewRemindersCallCount = 0
     var requestNotificationPermissionCallCount = 0
     var disconnectCallCount = 0
 
@@ -750,11 +801,13 @@ private final class FakeIOSAppService: IOSAppServiceProtocol {
     }
 
     func syncReminders() async throws -> Int {
-        try syncRemindersResult.get()
+        syncRemindersCallCount += 1
+        return try syncRemindersResult.get()
     }
 
     func previewReminders() async throws -> [ScheduledReminder] {
-        try previewRemindersResult.get()
+        previewRemindersCallCount += 1
+        return try previewRemindersResult.get()
     }
 
     func requestNotificationPermission() async throws -> Bool {
@@ -793,6 +846,24 @@ private struct TestError: LocalizedError {
     var errorDescription: String? {
         message
     }
+}
+
+private func makeSampleAccountStatus() -> AccountStatus {
+    AccountStatus(
+        username: "sample-user",
+        expiration: Kotlinx_datetimeInstant.companion.fromEpochSeconds(
+            epochSeconds: 1_776_934_800,
+            nanosecondAdjustment: 0
+        ),
+        remainingDays: KotlinInt(int: 5),
+        premiumSeconds: KotlinLong(longLong: 432000),
+        isPremium: true,
+        lastCheckedAt: Kotlinx_datetimeInstant.companion.fromEpochSeconds(
+            epochSeconds: 1_776_502_800,
+            nanosecondAdjustment: 0
+        ),
+        expiryState: ExpiryState.active
+    )
 }
 
 private struct StubNotificationPermissionStateProvider: NotificationPermissionStateProviding {

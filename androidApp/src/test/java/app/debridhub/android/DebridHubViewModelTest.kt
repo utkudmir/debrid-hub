@@ -56,6 +56,36 @@ class DebridHubViewModelTest {
     }
 
     @Test
+    fun `init with authenticated session refreshes account and reminders`() = runTest {
+        val status = sampleAccountStatus()
+        val scheduled = listOf(
+            ScheduledReminder(Instant.parse("2026-04-20T09:00:00Z"), "3 days left"),
+            ScheduledReminder(Instant.parse("2026-04-22T09:00:00Z"), "1 day left")
+        )
+        val accountRepository = FakeAccountRepository(refreshResult = Result.success(status))
+        val reminderRepository = FakeReminderRepository(
+            preview = listOf(ScheduledReminder(Instant.parse("2026-04-19T09:00:00Z"), "preview")),
+            scheduled = scheduled
+        )
+        val viewModel = buildViewModel(
+            authRepository = FakeAuthRepository(isAuthenticated = true),
+            accountRepository = accountRepository,
+            reminderRepository = reminderRepository,
+            notificationScheduler = FakeNotificationScheduler(enabled = true)
+        )
+
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.checkingSession)
+        assertTrue(state.isAuthenticated)
+        assertEquals(status, state.accountStatus)
+        assertEquals(scheduled, state.scheduledReminders)
+        assertEquals(1, accountRepository.refreshCallCount)
+        assertEquals(1, reminderRepository.scheduleCallCount)
+    }
+
+    @Test
     fun `refresh account status schedules reminders when notifications are enabled`() = runTest {
         val status = sampleAccountStatus()
         val scheduled = listOf(
@@ -504,7 +534,12 @@ class DebridHubViewModelTest {
         var refreshResult: Result<AccountStatus> = Result.failure(IllegalStateException("unused")),
         private val cachedStatus: AccountStatus? = null
     ) : AccountRepository {
-        override suspend fun refreshAccountStatus(): Result<AccountStatus> = refreshResult
+        var refreshCallCount = 0
+
+        override suspend fun refreshAccountStatus(): Result<AccountStatus> {
+            refreshCallCount += 1
+            return refreshResult
+        }
 
         override suspend fun getCachedAccountStatus(): AccountStatus? = cachedStatus
     }
