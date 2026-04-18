@@ -153,12 +153,11 @@ jobs:
   verify-android:
     needs: schedule-gate
     if: needs['schedule-gate'].outputs.enabled == 'true'
-    runs-on: macos-15
+    runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
       VERIFY_PROFILE: ${{ needs['schedule-gate'].outputs.verify_profile }}
-      ANDROID_SDK_ROOT: /Users/runner/Library/Android/sdk
-      ANDROID_EMULATOR_ACCEL_MODE: "off"
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       STEP_COMMAND_TIMEOUT_SECONDS: "1800"
     steps:
       - name: Checkout

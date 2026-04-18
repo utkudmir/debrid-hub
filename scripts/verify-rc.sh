@@ -104,6 +104,17 @@ reason_in_csv() {
   return 1
 }
 
+android_boot_log_has_accel_error() {
+  local boot_log_path="${1:-}"
+
+  [[ -n "$boot_log_path" ]] || return 1
+  [[ -f "$boot_log_path" ]] || return 1
+
+  grep -Eq \
+    "HVF error: HV_UNSUPPORTED|failed to initialize HVF|failed to initialize KVM|/dev/kvm|requires hardware acceleration" \
+    "$boot_log_path" 2>/dev/null
+}
+
 current_log_dir() {
   if [[ -n "$STEP_LOG_DIR" ]]; then
     printf '%s' "$STEP_LOG_DIR"
@@ -1233,7 +1244,7 @@ ensure_android_environment() {
   local retried_without_accel=0
   boot_log_path="$(current_log_dir)/android_emulator_boot.log"
   emulator_accel_mode="${ANDROID_EMULATOR_ACCEL_MODE:-auto}"
-  if [[ "${GITHUB_ACTIONS:-}" == "true" && "$emulator_accel_mode" == "auto" ]]; then
+  if [[ "${GITHUB_ACTIONS:-}" == "true" && "$emulator_accel_mode" == "auto" && "$(uname -s)" == "Darwin" ]]; then
     emulator_accel_mode="off"
   fi
 
@@ -1272,14 +1283,14 @@ ensure_android_environment() {
     deadline=$((SECONDS + boot_timeout_seconds))
     while [[ $SECONDS -lt $deadline ]]; do
       if ! kill -0 "$emulator_pid" 2>/dev/null; then
-        if grep -Eq "HVF error: HV_UNSUPPORTED|failed to initialize HVF" "$boot_log_path" 2>/dev/null; then
+        if android_boot_log_has_accel_error "$boot_log_path"; then
           if [[ "$emulator_accel_mode" != "off" && $retried_without_accel -eq 0 ]]; then
-            echo "HVF unavailable; retrying Android emulator with software acceleration (-accel off)."
+            echo "Hardware acceleration unavailable; retrying Android emulator with software acceleration (-accel off)."
             emulator_accel_mode="off"
             retried_without_accel=1
             continue 2
           fi
-          LAST_ERROR="android_emulator_hvf_unsupported"
+          LAST_ERROR="android_emulator_accel_unavailable"
         elif grep -q "CPU Architecture .* is not supported" "$boot_log_path" 2>/dev/null; then
           LAST_ERROR="android_emulator_incompatible_abi"
         elif grep -q "FATAL" "$boot_log_path" 2>/dev/null; then
@@ -1304,11 +1315,11 @@ ensure_android_environment() {
       sleep 2
     done
 
-    if [[ "$emulator_accel_mode" != "off" && $retried_without_accel -eq 0 ]] && grep -Eq "HVF error: HV_UNSUPPORTED|failed to initialize HVF" "$boot_log_path" 2>/dev/null; then
+    if [[ "$emulator_accel_mode" != "off" && $retried_without_accel -eq 0 ]] && android_boot_log_has_accel_error "$boot_log_path"; then
       if kill -0 "$emulator_pid" 2>/dev/null; then
         kill "$emulator_pid" >/dev/null 2>&1 || true
       fi
-      echo "HVF unavailable during boot; retrying Android emulator with software acceleration (-accel off)."
+      echo "Hardware acceleration unavailable during boot; retrying Android emulator with software acceleration (-accel off)."
       emulator_accel_mode="off"
       retried_without_accel=1
       continue
@@ -1537,8 +1548,8 @@ run_android_device_matrix() {
   local device_runtime_id
   local env_warn_reasons=""
 
-  if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
-    env_warn_reasons="android_emulator_hvf_unsupported"
+  if [[ "${GITHUB_ACTIONS:-}" == "true" && "$(uname -s)" == "Darwin" ]]; then
+    env_warn_reasons="android_emulator_accel_unavailable"
   fi
 
   dependency_status="$(get_step_status "android_debug_build")"
