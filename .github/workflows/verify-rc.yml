@@ -159,6 +159,9 @@ jobs:
     env:
       VERIFY_PROFILE: ${{ needs['schedule-gate'].outputs.verify_profile }}
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ANDROID_USER_HOME: /home/runner/.android
+      ANDROID_EMULATOR_HOME: /home/runner/.android
+      ANDROID_AVD_HOME: /home/runner/.android/avd
       STEP_COMMAND_TIMEOUT_SECONDS: "1800"
     steps:
       - name: Checkout
@@ -266,6 +269,13 @@ jobs:
           "$ANDROID_SDK_ROOT/emulator/emulator" -version
           "$ANDROID_SDK_ROOT/platform-tools/adb" --version
 
+      - name: Prepare Android AVD directories
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$ANDROID_USER_HOME" "$ANDROID_EMULATOR_HOME" "$ANDROID_AVD_HOME"
+          ls -la "$ANDROID_USER_HOME"
+
       - name: Provision Device Pool
         shell: bash
         run: |
@@ -371,6 +381,28 @@ jobs:
           targets=("verify-shared" "verify-android" "verify-ios")
           deadline=$((SECONDS + 10800))
 
+          cancel_run_until_targets_stop() {
+            local message="$1"
+            local cancel_deadline=$((SECONDS + 240))
+            local remaining
+
+            echo "$message"
+            while [[ $SECONDS -lt $cancel_deadline ]]; do
+              gh run cancel "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" || true
+              sleep 5
+
+              remaining="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" --jq '[.jobs[] | select((.name == "verify-shared" or .name == "verify-android" or .name == "verify-ios") and (.status == "queued" or .status == "in_progress"))] | length' || echo 0)"
+              if [[ "$remaining" == "0" ]]; then
+                echo "All required jobs are no longer queued/in_progress after cancellation."
+                return 0
+              fi
+              echo "Waiting for required jobs to stop (remaining=$remaining)."
+            done
+
+            echo "Cancel monitor timed out; exiting fail-fast monitor."
+            return 0
+          }
+
           while [[ $SECONDS -lt $deadline ]]; do
             mapfile -t rows < <(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" --jq '.jobs[] | [.name, .status, (.conclusion // "")] | @tsv')
 
@@ -394,8 +426,7 @@ jobs:
                 if [[ "$conclusion" == "success" ]]; then
                   completed_success=$((completed_success + 1))
                 else
-                  echo "Detected failing required job: $target (conclusion=$conclusion)."
-                  gh run cancel "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" || true
+                  cancel_run_until_targets_stop "Detected failing required job: $target (conclusion=$conclusion). Triggering fail-fast cancel."
                   exit 0
                 fi
               fi
@@ -409,8 +440,7 @@ jobs:
             sleep 10
           done
 
-          echo "Fail-fast monitor timed out; canceling run to avoid resource waste."
-          gh run cancel "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" || true
+          cancel_run_until_targets_stop "Fail-fast monitor timed out; canceling run to avoid resource waste."
           exit 0
 
   verify-gate:

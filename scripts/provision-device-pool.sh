@@ -207,23 +207,35 @@ android_avd_exists() {
 
 android_avd_exists_via_avdmanager() {
   local avd_name="$1"
-  "$AVDMANAGER_BIN" list avd | awk -v target="$avd_name" '\
-    /^[[:space:]]*Name:/ {\
-      value = $0\
-      sub(/^[[:space:]]*Name:[[:space:]]*/, "", value)\
-      if (value == target) {\
-        found = 1\
-      }\
-    }\
-    END { exit found ? 0 : 1 }\
+  "$AVDMANAGER_BIN" list avd | awk -v target="$avd_name" '
+    /^[[:space:]]*Name:/ {
+      value = $0
+      sub(/^[[:space:]]*Name:[[:space:]]*/, "", value)
+      if (value == target) {
+        found = 1
+      }
+    }
+    END { exit found ? 0 : 1 }
   '
 }
 
 android_avd_exists_on_disk() {
   local avd_name="$1"
-  local avd_home="${ANDROID_AVD_HOME:-$HOME/.android/avd}"
+  local avd_home
+  local -a candidate_homes=()
 
-  [[ -f "$avd_home/$avd_name.ini" || -d "$avd_home/$avd_name.avd" ]]
+  if [[ -n "${ANDROID_AVD_HOME:-}" ]]; then
+    candidate_homes+=("$ANDROID_AVD_HOME")
+  fi
+  candidate_homes+=("$HOME/.android/avd" "$HOME/.config/.android/avd")
+
+  for avd_home in "${candidate_homes[@]}"; do
+    if [[ -f "$avd_home/$avd_name.ini" || -d "$avd_home/$avd_name.avd" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
 }
 
 android_host_arch() {
@@ -356,6 +368,7 @@ provision_android_targets() {
   local target_system_image
   local effective_avd_name
   local resolved_device_profile
+  local avd_home
 
   while IFS= read -r row; do
     [[ -z "$row" ]] && continue
@@ -405,9 +418,9 @@ provision_android_targets() {
     set -o pipefail
 
     echo "[android][$label] creating avd: $effective_avd_name"
-    if ! printf 'no\n' | "$AVDMANAGER_BIN" create avd -n "$effective_avd_name" -k "$target_system_image" --abi "$target_abi" -d "$resolved_device_profile" --force >/dev/null 2>&1; then
+    if ! printf 'no\n' | "$AVDMANAGER_BIN" create avd -n "$effective_avd_name" -k "$target_system_image" --abi "$target_abi" -d "$resolved_device_profile" --force; then
       echo "[android][$label] avdmanager create failed with profile '$resolved_device_profile'; retrying without explicit device profile" >&2
-      if ! printf 'no\n' | "$AVDMANAGER_BIN" create avd -n "$effective_avd_name" -k "$target_system_image" --abi "$target_abi" --force >/dev/null 2>&1; then
+      if ! printf 'no\n' | "$AVDMANAGER_BIN" create avd -n "$effective_avd_name" -k "$target_system_image" --abi "$target_abi" --force; then
         echo "[android][$label] avdmanager create failed for $effective_avd_name (image=$target_system_image abi=$target_abi)" >&2
         "$AVDMANAGER_BIN" list avd >&2 || true
         ANDROID_FAILURES=$((ANDROID_FAILURES + 1))
@@ -420,9 +433,13 @@ provision_android_targets() {
     else
       echo "[android][$label] failed to provision: $effective_avd_name" >&2
       "$AVDMANAGER_BIN" list avd >&2 || true
-      if [[ -d "${ANDROID_AVD_HOME:-$HOME/.android/avd}" ]]; then
-        ls -la "${ANDROID_AVD_HOME:-$HOME/.android/avd}" >&2 || true
-      fi
+      for avd_home in "${ANDROID_AVD_HOME:-}" "$HOME/.android/avd" "$HOME/.config/.android/avd"; do
+        [[ -z "$avd_home" ]] && continue
+        if [[ -d "$avd_home" ]]; then
+          echo "[android][$label] listing AVD home: $avd_home" >&2
+          ls -la "$avd_home" >&2 || true
+        fi
+      done
       ANDROID_FAILURES=$((ANDROID_FAILURES + 1))
     fi
   done < "$PROFILE_ANDROID_FILE"
