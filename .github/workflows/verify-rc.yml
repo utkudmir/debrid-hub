@@ -213,6 +213,38 @@ jobs:
           set -o pipefail
           echo "android sdk licenses accepted"
 
+      - name: Ensure Android emulator tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER_BIN=""
+          for candidate in \
+            "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "$ANDROID_SDK_ROOT/cmdline-tools/bin/sdkmanager" \
+            "$ANDROID_SDK_ROOT/tools/bin/sdkmanager"; do
+            if [[ -x "$candidate" ]]; then
+              SDKMANAGER_BIN="$candidate"
+              break
+            fi
+          done
+          if [[ -z "$SDKMANAGER_BIN" ]]; then
+            echo "sdkmanager not found under $ANDROID_SDK_ROOT" >&2
+            exit 1
+          fi
+          echo "using sdkmanager: $SDKMANAGER_BIN"
+          set +o pipefail
+          if ! yes | "$SDKMANAGER_BIN" --install "platform-tools" "emulator" >/dev/null; then
+            echo "Failed to install Android emulator tooling" >&2
+            exit 1
+          fi
+          set -o pipefail
+          if [[ ! -x "$ANDROID_SDK_ROOT/emulator/emulator" ]]; then
+            echo "Android emulator binary is still missing: $ANDROID_SDK_ROOT/emulator/emulator" >&2
+            exit 1
+          fi
+          "$ANDROID_SDK_ROOT/emulator/emulator" -version
+          "$ANDROID_SDK_ROOT/platform-tools/adb" --version
+
       - name: Provision Device Pool
         shell: bash
         run: |
