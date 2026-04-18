@@ -46,6 +46,7 @@ kotlin {
         named("commonTest") {
             dependencies {
                 implementation(kotlin("test"))
+                implementation("io.ktor:ktor-client-mock:2.3.12")
             }
         }
         named("androidMain") {

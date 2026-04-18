@@ -141,6 +141,20 @@ class DebridHubViewModelTest {
     }
 
     @Test
+    fun `request notification permission surfaces info when already enabled`() = runTest {
+        val viewModel = buildViewModel(
+            notificationScheduler = FakeNotificationScheduler(enabled = true)
+        )
+
+        advanceUntilIdle()
+        viewModel.requestNotificationPermission()
+        advanceUntilIdle()
+
+        assertEquals("Notifications are already enabled.", viewModel.uiState.value.infoMessage)
+        assertEquals(NotificationPermissionUiState.Granted, viewModel.uiState.value.notificationPermissionState)
+    }
+
+    @Test
     fun `notification denial keeps reminders unscheduled and emits guidance`() = runTest {
         val status = sampleAccountStatus()
         val preview = listOf(ScheduledReminder(Instant.parse("2026-04-20T09:00:00Z"), "preview"))
@@ -334,19 +348,62 @@ class DebridHubViewModelTest {
         assertEquals("Temporary authorization outage", viewModel.uiState.value.errorMessage)
     }
 
+    @Test
+    fun `export diagnostics emits share event and info message`() = runTest {
+        val viewModel = buildViewModel()
+
+        advanceUntilIdle()
+        val shareEvent = async { viewModel.events.first { it is DebridHubEvent.ShareDiagnostics } }
+
+        viewModel.exportDiagnostics()
+        advanceUntilIdle()
+
+        assertEquals(
+            DebridHubEvent.ShareDiagnostics("diagnostics.json", "/tmp/diagnostics.json"),
+            shareEvent.await()
+        )
+        assertEquals("Diagnostics exported to /tmp/diagnostics.json", viewModel.uiState.value.infoMessage)
+    }
+
+    @Test
+    fun `export diagnostics failure surfaces error message`() = runTest {
+        val viewModel = buildViewModel(fileExporter = FakeFileExporter(failure = IllegalStateException("disk full")))
+
+        advanceUntilIdle()
+        viewModel.exportDiagnostics()
+        advanceUntilIdle()
+
+        assertEquals("disk full", viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `load diagnostics preview failure surfaces error message`() = runTest {
+        val viewModel = buildViewModel(
+            diagnosticsRepository = FakeDiagnosticsRepository(failure = IllegalStateException("preview unavailable"))
+        )
+
+        advanceUntilIdle()
+        viewModel.loadDiagnosticsPreview()
+        advanceUntilIdle()
+
+        assertEquals("preview unavailable", viewModel.uiState.value.errorMessage)
+        assertFalse(viewModel.uiState.value.isLoadingDiagnosticsPreview)
+    }
+
     private fun buildViewModel(
         authRepository: FakeAuthRepository = FakeAuthRepository(),
         accountRepository: FakeAccountRepository = FakeAccountRepository(),
         reminderRepository: FakeReminderRepository = FakeReminderRepository(),
-        notificationScheduler: FakeNotificationScheduler = FakeNotificationScheduler()
+        notificationScheduler: FakeNotificationScheduler = FakeNotificationScheduler(),
+        diagnosticsRepository: FakeDiagnosticsRepository = FakeDiagnosticsRepository(),
+        fileExporter: FakeFileExporter = FakeFileExporter()
     ): DebridHubViewModel {
-        val diagnosticsRepository = FakeDiagnosticsRepository()
         return DebridHubViewModel(
             authRepository = authRepository,
             accountRepository = accountRepository,
             reminderRepository = reminderRepository,
             notificationScheduler = notificationScheduler,
-            exportDiagnosticsUseCase = ExportDiagnosticsUseCase(diagnosticsRepository, FakeFileExporter()),
+            exportDiagnosticsUseCase = ExportDiagnosticsUseCase(diagnosticsRepository, fileExporter),
             previewDiagnosticsUseCase = PreviewDiagnosticsUseCase(diagnosticsRepository)
         )
     }
@@ -443,18 +500,28 @@ class DebridHubViewModelTest {
         override suspend fun cancelAll() = Unit
     }
 
-    private class FakeDiagnosticsRepository : DiagnosticsRepository {
-        override suspend fun collectDiagnostics(): DiagnosticsBundle = DiagnosticsBundle(
+    private class FakeDiagnosticsRepository(
+        private val bundle: DiagnosticsBundle = DiagnosticsBundle(
             appVersion = "1.0.0",
             os = "Android 16",
             lastSync = null,
             accountState = null,
             additionalInfo = emptyMap()
-        )
+        ),
+        private val failure: Throwable? = null
+    ) : DiagnosticsRepository {
+        override suspend fun collectDiagnostics(): DiagnosticsBundle {
+            failure?.let { throw it }
+            return bundle
+        }
     }
 
-    private class FakeFileExporter : FileExporter {
-        override suspend fun exportTextFile(fileName: String, content: String): ExportedFile =
-            ExportedFile(displayName = fileName, location = "/tmp/$fileName")
+    private class FakeFileExporter(
+        private val failure: Throwable? = null
+    ) : FileExporter {
+        override suspend fun exportTextFile(fileName: String, content: String): ExportedFile {
+            failure?.let { throw it }
+            return ExportedFile(displayName = fileName, location = "/tmp/$fileName")
+        }
     }
 }

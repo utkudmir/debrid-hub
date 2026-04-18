@@ -1,10 +1,12 @@
 SHELL := /bin/bash
 
-.PHONY: help shared-test android-debug ios-project ios-open ios-build ios-run verify-rc provision-devices
+.PHONY: help shared-test android-debug android-connected-test coverage ios-project ios-open ios-build ios-run verify-rc provision-devices
 
 help:
 	@echo "make shared-test  - Run shared Kotlin tests"
 	@echo "make android-debug - Assemble the Android debug app"
+	@echo "make android-connected-test - Run Android emulator-backed smoke test"
+	@echo "make coverage     - Generate and verify Kotlin coverage report"
 	@echo "make ios-project  - Generate the iOS Xcode project"
 	@echo "make ios-open     - Generate and open the iOS project in Xcode"
 	@echo "make ios-build    - Build the iOS simulator app"
@@ -17,6 +19,12 @@ shared-test:
 
 android-debug:
 	@if [[ -z "$$JAVA_HOME" || ! -x "$$JAVA_HOME/bin/java" ]]; then export JAVA_HOME="$$(/usr/libexec/java_home -v 21 2>/dev/null)"; fi; ./gradlew :androidApp:assembleDebug
+
+android-connected-test:
+	@if [[ -z "$$JAVA_HOME" || ! -x "$$JAVA_HOME/bin/java" ]]; then export JAVA_HOME="$$(/usr/libexec/java_home -v 21 2>/dev/null)"; fi; ./gradlew :androidApp:connectedDebugAndroidTest
+
+coverage:
+	@if [[ -z "$$JAVA_HOME" || ! -x "$$JAVA_HOME/bin/java" ]]; then export JAVA_HOME="$$(/usr/libexec/java_home -v 21 2>/dev/null)"; fi; ./gradlew :androidApp:jacocoDebugUnitTestReport :androidApp:jacocoDebugUnitTestCoverageVerification
 
 ios-project:
 	./scripts/generate-ios-project.sh

@@ -1,8 +1,13 @@
+import org.gradle.api.tasks.testing.Test
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+import org.gradle.testing.jacoco.tasks.JacocoReport
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
+    jacoco
 }
 
 android {
@@ -15,6 +20,7 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
@@ -34,6 +40,107 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_21)
+    }
+}
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+tasks.withType<Test>().configureEach {
+    outputs.upToDateWhen { false }
+    doFirst {
+        delete(layout.buildDirectory.dir("test-results/$name/binary"))
+    }
+    extensions.configure(JacocoTaskExtension::class.java) {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+    }
+}
+
+val coverageClassExcludes = listOf(
+    "**/*$*",
+    "**/AndroidAppGraph*",
+    "**/ComposableSingletons*",
+    "**/DebridHubAppKt*",
+    "**/DebridHubViewModelFactory*",
+    "**/MainActivity*",
+    "**/domain/model/**",
+    "**/domain/repository/**",
+    "**/platform/**",
+    "**/DispatcherProvider*"
+)
+
+val androidClassesJar = layout.buildDirectory.file("intermediates/runtime_app_classes_jar/debug/bundleDebugClassesToRuntimeJar/classes.jar")
+val sharedClassesJar = project(":shared").layout.buildDirectory.file("intermediates/runtime_library_classes_jar/androidMain/bundleAndroidMainClassesToRuntimeJar/classes.jar")
+val sharedSourcesDir = project(":shared").projectDir.resolve("src/commonMain/kotlin")
+
+val prepareCoverageArtifacts by tasks.registering(Delete::class) {
+    delete(
+        layout.buildDirectory.file("jacoco/testDebugUnitTest.exec"),
+        layout.buildDirectory.dir("reports/jacoco/jacocoDebugUnitTestReport")
+    )
+}
+
+tasks.register<JacocoReport>("jacocoDebugUnitTestReport") {
+    dependsOn(prepareCoverageArtifacts, "testDebugUnitTest")
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+
+    classDirectories.setFrom(
+        files(
+            androidClassesJar.map { zipTree(it.asFile) },
+            sharedClassesJar.map { zipTree(it.asFile) }
+        ).asFileTree.matching {
+            exclude(coverageClassExcludes)
+        }
+    )
+    sourceDirectories.setFrom(files(projectDir.resolve("src/main/java"), sharedSourcesDir))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include("jacoco/testDebugUnitTest.exec")
+            include("outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
+        }
+    )
+}
+
+tasks.register<JacocoCoverageVerification>("jacocoDebugUnitTestCoverageVerification") {
+    dependsOn("jacocoDebugUnitTestReport")
+
+    classDirectories.setFrom(
+        files(
+            androidClassesJar.map { zipTree(it.asFile) },
+            sharedClassesJar.map { zipTree(it.asFile) }
+        ).asFileTree.matching {
+            exclude(coverageClassExcludes)
+        }
+    )
+    sourceDirectories.setFrom(files(projectDir.resolve("src/main/java"), sharedSourcesDir))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include("jacoco/testDebugUnitTest.exec")
+            include("outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
+        }
+    )
+
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.70".toBigDecimal()
+            }
+        }
+        rule {
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = "0.55".toBigDecimal()
+            }
+        }
     }
 }
 
@@ -71,5 +178,11 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation("junit:junit:4.13.2")
+    testImplementation("io.ktor:ktor-client-mock:2.3.12")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+
+    androidTestImplementation("androidx.test:core-ktx:1.6.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 }
