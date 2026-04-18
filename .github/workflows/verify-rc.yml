@@ -56,14 +56,14 @@ on:
 
 concurrency:
   group: verify-rc-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 permissions:
   contents: read
-  actions: write
 
 env:
   VERIFY_PROFILE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.verify_profile || (github.event_name == 'schedule' && 'rc-full' || 'ci-pr') }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   schedule-gate:
@@ -152,7 +152,9 @@ jobs:
           if-no-files-found: ignore
 
   verify-android:
-    needs: schedule-gate
+    needs:
+      - schedule-gate
+      - verify-shared
     if: needs['schedule-gate'].outputs.enabled == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
@@ -282,7 +284,25 @@ jobs:
           set -euo pipefail
           echo "== provisioning device pool =="
           echo "profile: $VERIFY_PROFILE"
-          PROVISION_TARGETS=android make provision-devices
+          mkdir -p build/ci-logs
+          provision_log="build/ci-logs/android-provision.log"
+          : > "$provision_log"
+          provision_ok=0
+          for attempt in 1 2; do
+            echo "Android provision attempt ${attempt}/2" | tee -a "$provision_log"
+            if PROVISION_TARGETS=android make provision-devices 2>&1 | tee -a "$provision_log"; then
+              provision_ok=1
+              break
+            fi
+            if [[ "$attempt" -lt 2 ]]; then
+              echo "Android provision attempt ${attempt} failed; retrying in 20s" | tee -a "$provision_log"
+              sleep 20
+            fi
+          done
+          if [[ "$provision_ok" -ne 1 ]]; then
+            echo "Android device pool provisioning failed after retries" | tee -a "$provision_log"
+            exit 1
+          fi
           echo "device pool provisioning completed"
 
       - name: Verify Android
@@ -304,8 +324,20 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+      - name: Upload CI logs (android)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs-android
+          path: build/ci-logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
   verify-ios:
-    needs: schedule-gate
+    needs:
+      - schedule-gate
+      - verify-shared
+      - verify-android
     if: needs['schedule-gate'].outputs.enabled == 'true'
     runs-on: macos-15
     timeout-minutes: 180
@@ -344,7 +376,10 @@ jobs:
           set -euo pipefail
           echo "== provisioning device pool =="
           echo "profile: $VERIFY_PROFILE"
-          PROVISION_TARGETS=ios make provision-devices
+          mkdir -p build/ci-logs
+          provision_log="build/ci-logs/ios-provision.log"
+          : > "$provision_log"
+          PROVISION_TARGETS=ios make provision-devices 2>&1 | tee -a "$provision_log"
           echo "device pool provisioning completed"
 
       - name: Verify iOS
@@ -366,82 +401,14 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  fail-fast-cancel:
-    needs: schedule-gate
-    if: needs['schedule-gate'].outputs.enabled == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 180
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - name: Cancel run when required job fails
-        shell: bash
-        run: |
-          set -euo pipefail
-          targets=("verify-shared" "verify-android" "verify-ios")
-          deadline=$((SECONDS + 10800))
-
-          cancel_run_until_targets_stop() {
-            local message="$1"
-            local cancel_deadline=$((SECONDS + 240))
-            local remaining
-
-            echo "$message"
-            while [[ $SECONDS -lt $cancel_deadline ]]; do
-              gh run cancel "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" || true
-              sleep 5
-
-              remaining="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" --jq '[.jobs[] | select((.name == "verify-shared" or .name == "verify-android" or .name == "verify-ios") and (.status == "queued" or .status == "in_progress"))] | length' || echo 0)"
-              if [[ "$remaining" == "0" ]]; then
-                echo "All required jobs are no longer queued/in_progress after cancellation."
-                return 0
-              fi
-              echo "Waiting for required jobs to stop (remaining=$remaining)."
-            done
-
-            echo "Cancel monitor timed out; exiting fail-fast monitor."
-            return 0
-          }
-
-          while [[ $SECONDS -lt $deadline ]]; do
-            mapfile -t rows < <(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" --jq '.jobs[] | [.name, .status, (.conclusion // "")] | @tsv')
-
-            declare -A status_by_name=()
-            declare -A conclusion_by_name=()
-            for row in "${rows[@]}"; do
-              name="${row%%$'\t'*}"
-              rest="${row#*$'\t'}"
-              status="${rest%%$'\t'*}"
-              conclusion="${rest#*$'\t'}"
-              status_by_name["$name"]="$status"
-              conclusion_by_name["$name"]="$conclusion"
-            done
-
-            completed_success=0
-            for target in "${targets[@]}"; do
-              status="${status_by_name[$target]:-pending}"
-              conclusion="${conclusion_by_name[$target]:-}"
-
-              if [[ "$status" == "completed" ]]; then
-                if [[ "$conclusion" == "success" ]]; then
-                  completed_success=$((completed_success + 1))
-                else
-                  cancel_run_until_targets_stop "Detected failing required job: $target (conclusion=$conclusion). Triggering fail-fast cancel."
-                  exit 0
-                fi
-              fi
-            done
-
-            if [[ "$completed_success" -eq "${#targets[@]}" ]]; then
-              echo "All required jobs completed successfully; fail-fast monitor exiting."
-              exit 0
-            fi
-
-            sleep 10
-          done
-
-          cancel_run_until_targets_stop "Fail-fast monitor timed out; canceling run to avoid resource waste."
-          exit 0
+      - name: Upload CI logs (ios)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs-ios
+          path: build/ci-logs/
+          retention-days: 7
+          if-no-files-found: ignore
 
   verify-gate:
     needs:
@@ -449,7 +416,6 @@ jobs:
       - verify-shared
       - verify-android
       - verify-ios
-      - fail-fast-cancel
     if: always() && needs['schedule-gate'].outputs.enabled == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
