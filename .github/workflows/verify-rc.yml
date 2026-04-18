@@ -213,6 +213,26 @@ jobs:
           set -o pipefail
           echo "android sdk licenses accepted"
 
+      - name: Install Android emulator runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libpulse0 \
+            libnss3 \
+            libx11-6 \
+            libx11-xcb1 \
+            libxcb1 \
+            libxcomposite1 \
+            libxcursor1 \
+            libxi6 \
+            libxrandr2 \
+            libxdamage1 \
+            libxtst6 \
+            libgl1 \
+            libegl1
+
       - name: Ensure Android emulator tooling
         shell: bash
         run: |
