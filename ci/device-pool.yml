@@ -1,0 +1,91 @@
+schema_version: 1
+
+defaults:
+  android_package: com.utku.debridhub
+  ios_bundle_id: com.utku.debridhub.ios
+  signoff_owner: utkudemir
+
+profiles:
+  local-fast:
+    android:
+      - label: latest
+        avd: Medium_Phone
+        api: 36
+        abi: arm64-v8a
+        system_image: system-images;android-36;google_apis;arm64-v8a
+        device_profile: pixel_8_pro
+    ios:
+      - label: latest-phone
+        simulator: iPhone 17 Pro Max
+        runtime: com.apple.CoreSimulator.SimRuntime.iOS-26-4
+        device_type: com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max
+
+  ci-pr:
+    android:
+      - label: min-edge
+        avd: api24-phone
+        fallbacks:
+          - api23-phone
+        api: 24
+        abi: x86_64
+        system_image: system-images;android-24;google_apis;x86_64
+        device_profile: pixel_2
+      - label: latest
+        avd: api36-phone
+        fallbacks:
+          - api35-phone
+        api: 36
+        abi: arm64-v8a
+        system_image: system-images;android-36;google_apis;arm64-v8a
+        device_profile: pixel_8_pro
+    ios:
+      - label: latest-phone
+        simulator: iPhone 17 Pro Max
+        fallbacks:
+          - iPhone 17 Pro
+        runtime: com.apple.CoreSimulator.SimRuntime.iOS-26-4
+        device_type: com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max
+
+  ci-nightly:
+    android:
+      - label: min-edge
+        avd: api24-phone
+        api: 24
+        abi: x86_64
+        system_image: system-images;android-24;google_apis;x86_64
+        device_profile: pixel_2
+      - label: mid
+        avd: api30-phone
+        api: 30
+        abi: x86_64
+        system_image: system-images;android-30;google_apis;x86_64
+        device_profile: pixel_5
+      - label: latest
+        avd: api36-phone
+        api: 36
+        abi: arm64-v8a
+        system_image: system-images;android-36;google_apis;arm64-v8a
+        device_profile: pixel_8_pro
+    ios:
+      - label: small-screen
+        simulator: iPhone SE (3rd generation)
+        runtime: com.apple.CoreSimulator.SimRuntime.iOS-26-4
+        device_type: com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation
+      - label: large-screen
+        simulator: iPhone 17 Pro Max
+        runtime: com.apple.CoreSimulator.SimRuntime.iOS-26-4
+        device_type: com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max
+
+  rc-full:
+    includes:
+      - ci-pr
+      - ci-nightly
+
+maintenance:
+  review_triggers:
+    - xcode_runtime_update
+    - android_api_stable_update
+    - monthly
+  notes:
+    - Keep ci-pr fast and deterministic.
+    - Keep rc-full aligned with release-supported device classes.

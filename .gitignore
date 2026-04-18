@@ -1,0 +1,22 @@
+# Gradle / Kotlin
+.gradle/
+.kotlin/
+build/
+**/build/
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+
+# macOS
+.DS_Store
+
+# Xcode user data / derived artifacts
+iosApp/DebridHubHost.xcodeproj/project.xcworkspace/xcuserdata/
+iosApp/DebridHubHost.xcodeproj/xcuserdata/
+*.xcuserstate
+
+# Local env
+.env
+.env.*
+local.properties

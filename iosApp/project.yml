@@ -1,0 +1,50 @@
+name: DebridHubHost
+options:
+  deploymentTarget:
+    iOS: "18.0"
+settings:
+  base:
+    PRODUCT_BUNDLE_IDENTIFIER: com.utku.debridhub.ios
+    PRODUCT_NAME: DebridHub
+    SWIFT_VERSION: "5.10"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+    FRAMEWORK_SEARCH_PATHS:
+      - $(inherited)
+      - $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
+    LD_RUNPATH_SEARCH_PATHS:
+      - $(inherited)
+      - "@executable_path/Frameworks"
+targets:
+  DebridHubHost:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: DebridHubHost
+        excludes:
+          - Info.plist
+    settings:
+      base:
+        INFOPLIST_FILE: DebridHubHost/Info.plist
+    preBuildScripts:
+      - name: Build Shared Framework
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+          REPO_ROOT="$SRCROOT/.."
+          if [[ -z "${JAVA_HOME:-}" || ! -x "$JAVA_HOME/bin/java" ]]; then
+            export JAVA_HOME="$("/usr/libexec/java_home" -v 21 2>/dev/null)"
+          fi
+          cd "$REPO_ROOT"
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+    dependencies:
+      - framework: ../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)/Shared.framework
+        embed: true
+schemes:
+  DebridHubHost:
+    build:
+      targets:
+        DebridHubHost: all
+    run:
+      config: Debug

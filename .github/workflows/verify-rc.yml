@@ -1,0 +1,133 @@
+name: verify-rc
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+    branches:
+      - main
+    paths:
+      - .github/workflows/verify-rc.yml
+      - Makefile
+      - build.gradle.kts
+      - settings.gradle.kts
+      - gradle.properties
+      - gradle/**
+      - ci/**
+      - scripts/**
+      - shared/**
+      - androidApp/**
+      - iosApp/**
+      - docs/release-gate.md
+      - docs/appstore-review-checklist.md
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/verify-rc.yml
+      - Makefile
+      - build.gradle.kts
+      - settings.gradle.kts
+      - gradle.properties
+      - gradle/**
+      - ci/**
+      - scripts/**
+      - shared/**
+      - androidApp/**
+      - iosApp/**
+      - docs/release-gate.md
+      - docs/appstore-review-checklist.md
+  schedule:
+    - cron: "0 3 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      verify_profile:
+        description: Device pool profile to run
+        required: false
+        type: choice
+        default: rc-full
+        options:
+          - ci-pr
+          - ci-nightly
+          - rc-full
+
+concurrency:
+  group: verify-rc-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify-rc:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: macos-15
+    timeout-minutes: 180
+    env:
+      VERIFY_PROFILE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.verify_profile || (github.event_name == 'schedule' && 'rc-full' || 'ci-pr') }}
+      ANDROID_SDK_ROOT: /Users/runner/Library/Android/sdk
+    steps:
+      - name: Schedule gate precheck
+        id: schedule_gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "schedule" && "${{ vars.ENABLE_RC_FULL_SCHEDULE }}" != "true" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping scheduled rc-full run: ENABLE_RC_FULL_SCHEDULE is not 'true'."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            if [[ "${{ github.event_name }}" == "schedule" ]]; then
+              echo "Scheduled rc-full run is enabled by ENABLE_RC_FULL_SCHEDULE=true."
+            else
+              echo "Non-schedule event; proceeding with verify-rc workflow."
+            fi
+          fi
+
+      - name: Checkout
+        if: steps.schedule_gate.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        if: steps.schedule_gate.outputs.enabled == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Accept Android SDK licenses
+        if: steps.schedule_gate.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER_BIN=""
+          for candidate in \
+            "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "$ANDROID_SDK_ROOT/cmdline-tools/bin/sdkmanager" \
+            "$ANDROID_SDK_ROOT/tools/bin/sdkmanager"; do
+            if [[ -x "$candidate" ]]; then
+              SDKMANAGER_BIN="$candidate"
+              break
+            fi
+          done
+          if [[ -z "$SDKMANAGER_BIN" ]]; then
+            echo "sdkmanager not found under $ANDROID_SDK_ROOT" >&2
+            exit 1
+          fi
+          yes | "$SDKMANAGER_BIN" --licenses >/dev/null
+
+      - name: Provision Device Pool
+        if: steps.schedule_gate.outputs.enabled == 'true'
+        run: make provision-devices
+
+      - name: Verify RC Gate
+        if: steps.schedule_gate.outputs.enabled == 'true'
+        run: make verify-rc
+
+      - name: Upload RC artifacts
+        if: always() && steps.schedule_gate.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc-verify-artifacts
+          path: build/rc-verify/
