@@ -56,6 +56,8 @@ CI execution behavior:
 - Runner image is pinned: `macos-15`
 - Job timeout: `180` minutes (to cover `rc-full` matrix)
 - `cancel-in-progress` is enabled only for `pull_request` runs
+- Workflow prints explicit context logs for event/ref/profile/runner before
+  provisioning and verification steps
 
 Provision the canonical pool for a profile before running the gate in CI:
 

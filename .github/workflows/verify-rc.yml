@@ -72,6 +72,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo "== verify-rc precheck =="
+          echo "event: ${{ github.event_name }}"
+          echo "ref: ${{ github.ref }}"
+          echo "sha: ${{ github.sha }}"
+          echo "requested profile: $VERIFY_PROFILE"
+          echo "schedule gate variable ENABLE_RC_FULL_SCHEDULE='${{ vars.ENABLE_RC_FULL_SCHEDULE }}'"
           if [[ "${{ github.event_name }}" == "schedule" && "${{ vars.ENABLE_RC_FULL_SCHEDULE }}" != "true" ]]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "Skipping scheduled rc-full run: ENABLE_RC_FULL_SCHEDULE is not 'true'."
@@ -83,10 +89,28 @@ jobs:
               echo "Non-schedule event; proceeding with verify-rc workflow."
             fi
           fi
+          echo "effective profile: $VERIFY_PROFILE"
 
       - name: Checkout
         if: steps.schedule_gate.outputs.enabled == 'true'
         uses: actions/checkout@v4
+
+      - name: Workflow context
+        if: steps.schedule_gate.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "== verify-rc workflow context =="
+          echo "runner: $RUNNER_NAME"
+          echo "runner os: $RUNNER_OS"
+          echo "runner arch: $RUNNER_ARCH"
+          echo "workspace: $GITHUB_WORKSPACE"
+          echo "profile: $VERIFY_PROFILE"
+          echo "android sdk root: $ANDROID_SDK_ROOT"
+          echo "repository: $GITHUB_REPOSITORY"
+          echo "run id: $GITHUB_RUN_ID"
+          echo "run attempt: $GITHUB_RUN_ATTEMPT"
+          echo "actor: $GITHUB_ACTOR"
 
       - name: Set up JDK 21
         if: steps.schedule_gate.outputs.enabled == 'true'
@@ -115,20 +139,35 @@ jobs:
             echo "sdkmanager not found under $ANDROID_SDK_ROOT" >&2
             exit 1
           fi
+          echo "using sdkmanager: $SDKMANAGER_BIN"
           set +o pipefail
           if ! yes | "$SDKMANAGER_BIN" --licenses >/dev/null; then
             echo "Failed to accept Android SDK licenses" >&2
             exit 1
           fi
           set -o pipefail
+          echo "android sdk licenses accepted"
 
       - name: Provision Device Pool
         if: steps.schedule_gate.outputs.enabled == 'true'
-        run: make provision-devices
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "== provisioning device pool =="
+          echo "profile: $VERIFY_PROFILE"
+          make provision-devices
+          echo "device pool provisioning completed"
 
       - name: Verify RC Gate
         if: steps.schedule_gate.outputs.enabled == 'true'
-        run: make verify-rc
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "== verify rc gate =="
+          echo "profile: $VERIFY_PROFILE"
+          echo "step command timeout seconds: ${STEP_COMMAND_TIMEOUT_SECONDS:-2400}"
+          make verify-rc
+          echo "verify rc gate completed"
 
       - name: Upload RC artifacts
         if: always() && steps.schedule_gate.outputs.enabled == 'true'
