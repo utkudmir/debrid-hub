@@ -40,11 +40,11 @@ profiles:
         device_profile: pixel_8_pro
     ios:
       - label: latest-phone
-        simulator: iPhone 17 Pro Max
+        simulator: iPhone 16 Pro
         fallbacks:
-          - iPhone 17 Pro
-        runtime: com.apple.CoreSimulator.SimRuntime.iOS-26-4
-        device_type: com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max
+          - iPhone 16
+          - iPhone 15 Pro
+          - iPhone 14
 
   ci-nightly:
     android:
@@ -69,12 +69,13 @@ profiles:
     ios:
       - label: small-screen
         simulator: iPhone SE (3rd generation)
-        runtime: com.apple.CoreSimulator.SimRuntime.iOS-26-4
-        device_type: com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation
+        fallbacks:
+          - iPhone 13 mini
       - label: large-screen
-        simulator: iPhone 17 Pro Max
-        runtime: com.apple.CoreSimulator.SimRuntime.iOS-26-4
-        device_type: com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max
+        simulator: iPhone 16 Pro Max
+        fallbacks:
+          - iPhone 15 Pro Max
+          - iPhone 14 Pro Max
 
   rc-full:
     includes:

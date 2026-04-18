@@ -77,6 +77,10 @@ Android pool entries support technical fields (`api`, `abi`, `system_image`,
 `device_profile`), and iOS entries support (`runtime`, `device_type`) to keep
 CI hosts deterministic.
 
+When runtime/device type fields are omitted for an iOS profile target,
+provisioning falls back to selecting an available simulator from
+`simulator` and `fallbacks` in order.
+
 Current profile intent:
 
 - `local-fast`: one Android + one iOS target

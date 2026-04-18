@@ -271,6 +271,36 @@ raise SystemExit(1)
 PY
 }
 
+select_existing_ios_simulator() {
+  local primary="$1"
+  local fallback_list="$2"
+  local runtime_id="$3"
+  local candidates
+  local candidate
+
+  candidates="$primary"
+  if [[ -n "$fallback_list" ]]; then
+    if [[ -n "$candidates" ]]; then
+      candidates="$candidates|$fallback_list"
+    else
+      candidates="$fallback_list"
+    fi
+  fi
+
+  IFS='|' read -r -a candidate_array <<< "$candidates"
+  for candidate in "${candidate_array[@]}"; do
+    candidate="$(printf '%s' "$candidate" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
+    [[ -z "$candidate" ]] && continue
+
+    if ios_simulator_exists "$candidate" "$runtime_id"; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 provision_ios_targets() {
   local row
   local label
@@ -278,6 +308,7 @@ provision_ios_targets() {
   local fallback_list
   local runtime
   local device_type
+  local existing_simulator
 
   if ! command -v xcrun >/dev/null 2>&1; then
     echo "xcrun not found; skipping iOS provisioning" >&2
@@ -294,8 +325,9 @@ provision_ios_targets() {
     device_type="$(printf '%s' "$row" | awk -F '\t' '{print $5}')"
     [[ -z "$simulator_name" ]] && continue
 
-    if ios_simulator_exists "$simulator_name" "$runtime"; then
-      echo "[ios][$label] exists: $simulator_name"
+    existing_simulator=""
+    if existing_simulator="$(select_existing_ios_simulator "$simulator_name" "$fallback_list" "$runtime")"; then
+      echo "[ios][$label] exists: $existing_simulator"
       continue
     fi
 
