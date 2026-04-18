@@ -126,6 +126,48 @@ final class IOSAppViewModelTests: XCTestCase {
         }
     }
 
+    func testCancelAuthorizationStopsPollingAndKeepsUserUnauthenticated() async {
+        let service = FakeIOSAppService(
+            startSession: AuthorizationSessionState(
+                userCode: "ABCD-1234",
+                verificationURL: "https://real-debrid.com/device",
+                directVerificationURL: "https://real-debrid.com/device/confirm",
+                expiresAt: nil,
+                pollIntervalSeconds: 1
+            ),
+            pollResults: [.pending, .authorized]
+        )
+        let viewModel = await MainActor.run {
+            IOSAppViewModel(
+                service: service,
+                notificationPermissionProvider: StubNotificationPermissionStateProvider(state: .unknown),
+                settingsOpener: StubSettingsOpener(),
+                autoBootstrap: false
+            )
+        }
+
+        await MainActor.run {
+            viewModel.startAuthorization()
+        }
+        await waitUntil {
+            await MainActor.run { viewModel.userCode != nil }
+        }
+
+        await MainActor.run {
+            viewModel.cancelAuthorization()
+        }
+
+        try? await Task.sleep(nanoseconds: 1_100_000_000)
+
+        await MainActor.run {
+            XCTAssertFalse(viewModel.isAuthenticated)
+            XCTAssertNil(viewModel.userCode)
+            XCTAssertNil(viewModel.authorizationBrowserTarget)
+            XCTAssertEqual(1, service.pollAuthorizationCallCount)
+            XCTAssertEqual(0, service.refreshAccountStatusCallCount)
+        }
+    }
+
     func testRequestNotificationsShowsEnabledMessageWhenGranted() async {
         let service = FakeIOSAppService(
             startSession: AuthorizationSessionState(
@@ -266,6 +308,42 @@ final class IOSAppViewModelTests: XCTestCase {
         await MainActor.run {
             XCTAssertEqual("preview unavailable", viewModel.errorMessage)
             XCTAssertFalse(viewModel.isLoadingDiagnosticsPreview)
+        }
+    }
+
+    func testLoadDiagnosticsPreviewSuccessSetsPreviewContent() async {
+        let service = FakeIOSAppService(
+            startSession: AuthorizationSessionState(
+                userCode: "ABCD-1234",
+                verificationURL: "https://real-debrid.com/device",
+                directVerificationURL: nil,
+                expiresAt: nil,
+                pollIntervalSeconds: 10
+            ),
+            pollResults: [.pending]
+        )
+        service.previewDiagnosticsResult = .success("{\"os\":\"iOS 18\"}")
+
+        let viewModel = await MainActor.run {
+            IOSAppViewModel(
+                service: service,
+                notificationPermissionProvider: StubNotificationPermissionStateProvider(state: .unknown),
+                settingsOpener: StubSettingsOpener(),
+                autoBootstrap: false
+            )
+        }
+
+        await MainActor.run {
+            viewModel.loadDiagnosticsPreview()
+        }
+        await waitUntil {
+            await MainActor.run { viewModel.diagnosticsPreview != nil }
+        }
+
+        await MainActor.run {
+            XCTAssertEqual("{\"os\":\"iOS 18\"}", viewModel.diagnosticsPreview)
+            XCTAssertFalse(viewModel.isLoadingDiagnosticsPreview)
+            XCTAssertNil(viewModel.errorMessage)
         }
     }
 
@@ -634,6 +712,7 @@ private final class FakeIOSAppService: IOSAppServiceProtocol {
     var updatedReminderSnapshots: [ReminderConfigSnapshot] = []
     var syncRemindersResult: Result<Int, Error> = .success(0)
     var previewRemindersResult: Result<[ScheduledReminder], Error> = .success([])
+    var pollAuthorizationCallCount = 0
     var refreshAccountStatusCallCount = 0
     var requestNotificationPermissionCallCount = 0
     var disconnectCallCount = 0
@@ -660,6 +739,7 @@ private final class FakeIOSAppService: IOSAppServiceProtocol {
     }
 
     func pollAuthorization() async throws -> AuthorizationPollState {
+        pollAuthorizationCallCount += 1
         guard !pollResults.isEmpty else { return .pending }
         return pollResults.removeFirst()
     }

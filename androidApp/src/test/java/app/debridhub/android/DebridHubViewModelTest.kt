@@ -21,7 +21,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
 import org.junit.Assert.assertEquals
@@ -349,6 +351,41 @@ class DebridHubViewModelTest {
     }
 
     @Test
+    fun `cancel authorization stops polling and keeps user unauthenticated`() = runTest {
+        val session = DeviceAuthSession(
+            userCode = "ABCD-EFGH",
+            verificationUrl = "https://real-debrid.com/device",
+            directVerificationUrl = "https://real-debrid.com/device/direct",
+            pollIntervalSeconds = 30,
+            expiresAt = Instant.parse("2026-04-18T10:00:00Z")
+        )
+        val authRepository = FakeAuthRepository(
+            startAuthorizationResult = Result.success(session),
+            pollResults = ArrayDeque(
+                listOf(
+                    AuthPollResult.Pending,
+                    AuthPollResult.Authorized(sampleStoredAuthState())
+                )
+            )
+        )
+        val viewModel = buildViewModel(authRepository = authRepository)
+
+        advanceUntilIdle()
+        viewModel.startAuthorization()
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.onboarding.isPolling)
+        viewModel.cancelAuthorization()
+        runCurrent()
+        advanceTimeBy(31_000)
+        runCurrent()
+
+        assertEquals(OnboardingUiState(), viewModel.uiState.value.onboarding)
+        assertFalse(viewModel.uiState.value.isAuthenticated)
+        assertEquals(1, authRepository.pollCallCount)
+    }
+
+    @Test
     fun `export diagnostics emits share event and info message`() = runTest {
         val viewModel = buildViewModel()
 
@@ -388,6 +425,19 @@ class DebridHubViewModelTest {
 
         assertEquals("preview unavailable", viewModel.uiState.value.errorMessage)
         assertFalse(viewModel.uiState.value.isLoadingDiagnosticsPreview)
+    }
+
+    @Test
+    fun `load diagnostics preview success sets preview content`() = runTest {
+        val viewModel = buildViewModel()
+
+        advanceUntilIdle()
+        viewModel.loadDiagnosticsPreview()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.diagnosticsPreview?.contains("Android 16") == true)
+        assertFalse(viewModel.uiState.value.isLoadingDiagnosticsPreview)
+        assertEquals(null, viewModel.uiState.value.errorMessage)
     }
 
     private fun buildViewModel(
@@ -432,11 +482,12 @@ class DebridHubViewModelTest {
         private val pollResults: ArrayDeque<AuthPollResult> = ArrayDeque()
     ) : AuthRepository {
         var disconnectCalled = false
+        var pollCallCount = 0
 
         override suspend fun startAuthorization(): DeviceAuthSession = startAuthorizationResult.getOrThrow()
 
         override suspend fun pollAuthorization(): AuthPollResult =
-            pollResults.removeFirstOrNull() ?: error("unused")
+            pollResults.removeFirstOrNull()?.also { pollCallCount += 1 } ?: error("unused")
 
         override suspend fun getStoredAuthState(): StoredAuthState? = null
 
