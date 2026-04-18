@@ -158,6 +158,7 @@ jobs:
     env:
       VERIFY_PROFILE: ${{ needs['schedule-gate'].outputs.verify_profile }}
       ANDROID_SDK_ROOT: /Users/runner/Library/Android/sdk
+      ANDROID_EMULATOR_ACCEL_MODE: "off"
       STEP_COMMAND_TIMEOUT_SECONDS: "1800"
     steps:
       - name: Checkout

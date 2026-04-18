@@ -1207,57 +1207,102 @@ ensure_android_environment() {
   local boot_log_path
   local emulator_pid
   local -a emulator_args
+  local emulator_accel_mode
+  local boot_timeout_seconds=300
+  local retried_without_accel=0
   boot_log_path="$(current_log_dir)/android_emulator_boot.log"
-  emulator_args=(
-    -avd "$avd_name"
-    -no-snapshot-load
-    -no-snapshot-save
-    -no-boot-anim
-    -noaudio
-    -camera-back none
-    -camera-front none
-  )
-  if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
-    emulator_args+=(
-      -no-window
-      -gpu swiftshader_indirect
-    )
+  emulator_accel_mode="${ANDROID_EMULATOR_ACCEL_MODE:-auto}"
+  if [[ "${GITHUB_ACTIONS:-}" == "true" && "$emulator_accel_mode" == "auto" ]]; then
+    emulator_accel_mode="off"
   fi
-  "$emulator_bin" "${emulator_args[@]}" > "$boot_log_path" 2>&1 &
-  emulator_pid=$!
-  echo "Started Android emulator pid=$emulator_pid avd=$avd_name"
-  echo "Android emulator boot log: $boot_log_path"
-  sleep 5
 
-  deadline=$((SECONDS + 300))
-  while [[ $SECONDS -lt $deadline ]]; do
-    if ! kill -0 "$emulator_pid" 2>/dev/null; then
-      if grep -q "CPU Architecture .* is not supported" "$boot_log_path" 2>/dev/null; then
-        LAST_ERROR="android_emulator_incompatible_abi"
-      elif grep -q "FATAL" "$boot_log_path" 2>/dev/null; then
-        LAST_ERROR="android_emulator_start_failed"
-      else
-        LAST_ERROR="android_emulator_exited"
-      fi
-      echo "Android emulator exited early: $LAST_ERROR"
-      return 1
+  while :; do
+    emulator_args=(
+      -avd "$avd_name"
+      -no-snapshot-load
+      -no-snapshot-save
+      -no-boot-anim
+      -noaudio
+      -camera-back none
+      -camera-front none
+    )
+    if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+      emulator_args+=(
+        -no-window
+        -gpu swiftshader_indirect
+      )
+    fi
+    if [[ "$emulator_accel_mode" == "off" ]]; then
+      emulator_args+=(
+        -accel off
+      )
+      boot_timeout_seconds=900
+    else
+      boot_timeout_seconds=300
     fi
 
-    device_id="$(find_booted_device_for_avd "$avd_name" || true)"
-    if [[ -n "$device_id" ]]; then
-      echo "Android emulator reported booted device: $device_id"
-      if ! android_wait_for_device_ready "$device_id"; then
+    : > "$boot_log_path"
+    "$emulator_bin" "${emulator_args[@]}" > "$boot_log_path" 2>&1 &
+    emulator_pid=$!
+    echo "Started Android emulator pid=$emulator_pid avd=$avd_name accel=$emulator_accel_mode"
+    echo "Android emulator boot log: $boot_log_path"
+    sleep 5
+
+    deadline=$((SECONDS + boot_timeout_seconds))
+    while [[ $SECONDS -lt $deadline ]]; do
+      if ! kill -0 "$emulator_pid" 2>/dev/null; then
+        if grep -Eq "HVF error: HV_UNSUPPORTED|failed to initialize HVF" "$boot_log_path" 2>/dev/null; then
+          if [[ "$emulator_accel_mode" != "off" && $retried_without_accel -eq 0 ]]; then
+            echo "HVF unavailable; retrying Android emulator with software acceleration (-accel off)."
+            emulator_accel_mode="off"
+            retried_without_accel=1
+            continue 2
+          fi
+          LAST_ERROR="android_emulator_hvf_unsupported"
+        elif grep -q "CPU Architecture .* is not supported" "$boot_log_path" 2>/dev/null; then
+          LAST_ERROR="android_emulator_incompatible_abi"
+        elif grep -q "FATAL" "$boot_log_path" 2>/dev/null; then
+          LAST_ERROR="android_emulator_start_failed"
+        else
+          LAST_ERROR="android_emulator_exited"
+        fi
+        echo "Android emulator exited early: $LAST_ERROR"
         return 1
       fi
-      ANDROID_DEVICE_ID="$device_id"
-      return 0
-    fi
-    echo "Waiting for Android emulator to boot: $avd_name"
-    sleep 2
-  done
 
-  LAST_ERROR="android_boot_timeout"
-  return 1
+      device_id="$(find_booted_device_for_avd "$avd_name" || true)"
+      if [[ -n "$device_id" ]]; then
+        echo "Android emulator reported booted device: $device_id"
+        if ! android_wait_for_device_ready "$device_id"; then
+          return 1
+        fi
+        ANDROID_DEVICE_ID="$device_id"
+        return 0
+      fi
+      echo "Waiting for Android emulator to boot: $avd_name"
+      sleep 2
+    done
+
+    if [[ "$emulator_accel_mode" != "off" && $retried_without_accel -eq 0 ]] && grep -Eq "HVF error: HV_UNSUPPORTED|failed to initialize HVF" "$boot_log_path" 2>/dev/null; then
+      if kill -0 "$emulator_pid" 2>/dev/null; then
+        kill "$emulator_pid" >/dev/null 2>&1 || true
+      fi
+      echo "HVF unavailable during boot; retrying Android emulator with software acceleration (-accel off)."
+      emulator_accel_mode="off"
+      retried_without_accel=1
+      continue
+    fi
+
+    LAST_ERROR="android_boot_timeout"
+    if kill -0 "$emulator_pid" 2>/dev/null; then
+      kill "$emulator_pid" >/dev/null 2>&1 || true
+      sleep 2
+      if kill -0 "$emulator_pid" 2>/dev/null; then
+        kill -9 "$emulator_pid" >/dev/null 2>&1 || true
+      fi
+    fi
+    return 1
+  done
 }
 
 find_ios_simulator_udid_by_name() {
