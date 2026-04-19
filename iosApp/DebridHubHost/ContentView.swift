@@ -1,6 +1,6 @@
-import SwiftUI
 import SafariServices
 import Shared
+import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var viewModel: IOSAppViewModel
@@ -80,7 +80,10 @@ struct ContentView: View {
                 .font(.system(size: 30, weight: .bold, design: .rounded))
                 .foregroundStyle(Color(red: 0.09, green: 0.18, blue: 0.29))
 
-            Text("DebridHub talks directly to the official Real-Debrid API. Tokens stay on device and no backend is involved.")
+            Text(
+                "DebridHub talks directly to the official Real-Debrid API. " +
+                    "Tokens stay on device and no backend is involved."
+            )
                 .font(.body)
                 .foregroundStyle(.secondary)
 
@@ -89,7 +92,10 @@ struct ContentView: View {
                 TrustLine("2. Copy the code if you want, then approve the device on Real-Debrid.")
                 TrustLine("3. If your browser handoff is interrupted, use Open Authorization Page below.")
                 TrustLine("4. Return here while DebridHub polls for completion.")
-                TrustLine("You can open Trust Center first if you want to inspect privacy, security, diagnostics, and compliance details.")
+                TrustLine(
+                    "You can open Trust Center first if you want to inspect privacy, " +
+                        "security, diagnostics, and compliance details."
+                )
             }
 
             if let code = viewModel.userCode {
@@ -112,7 +118,10 @@ struct ContentView: View {
                         TrustLine("Polling every \(interval)s until \(formatInstant(expiration))")
                     }
 
-                    TrustLine("Waiting for Real-Debrid approval. After you approve the device, come back here and DebridHub will finish the login automatically.")
+                    TrustLine(
+                        "Waiting for Real-Debrid approval. After you approve the device, " +
+                            "come back here and DebridHub will finish the login automatically."
+                    )
 
                     HStack(spacing: 12) {
                         Button("Copy Code") {
@@ -164,7 +173,10 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.large)
 
-                Text("Notifications are currently disabled for DebridHub. You can try the permission prompt again or re-enable alerts from system settings.")
+                Text(
+                    "Notifications are currently disabled for DebridHub. You can try the " +
+                        "permission prompt again or re-enable alerts from system settings."
+                )
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             case .notDetermined, .unknown:
@@ -288,10 +300,17 @@ struct ContentView: View {
             } else if !viewModel.reminderConfig.enabled {
                 TrustLine("Reminders are currently turned off.")
             } else if viewModel.notificationPermissionState == .denied {
-                TrustLine("Reminders are planned, but notifications are currently disabled for DebridHub. Re-enable them in system settings if you want these alerts to fire.")
+                TrustLine(
+                    "Reminders are planned, but notifications are currently disabled for " +
+                        "DebridHub. Re-enable them in system settings if you want these alerts to fire."
+                )
                 reminderListLines
             } else if viewModel.scheduledReminders.isEmpty {
-                TrustLine("No future reminders are planned right now. This can happen if the expiry date is very close, already passed, or your selected reminder windows are already in the past.")
+                TrustLine(
+                    "No future reminders are planned right now. This can happen if the " +
+                        "expiry date is very close, already passed, or your selected reminder windows " +
+                        "are already in the past."
+                )
             } else {
                 TrustLine("DebridHub will schedule these local notifications on this device:")
                 reminderListLines
@@ -302,7 +321,10 @@ struct ContentView: View {
     @ViewBuilder
     private var reminderListLines: some View {
         if viewModel.scheduledReminders.isEmpty {
-            TrustLine("No future reminders are planned right now. This can happen if the expiry date is very close, already passed, or your selected reminder windows are already in the past.")
+            TrustLine(
+                "No future reminders are planned right now. This can happen if the expiry " +
+                    "date is very close, already passed, or your selected reminder windows are already in the past."
+            )
         } else {
             TrustLine("Planned reminder times:")
             ForEach(Array(viewModel.scheduledReminders.enumerated()), id: \.offset) { _, reminder in
@@ -323,21 +345,45 @@ struct ContentView: View {
 
             TrustCard(title: "Privacy") {
                 TrustLine("DebridHub has no backend. The app talks directly to Real-Debrid from your device.")
-                TrustLine("There is no analytics SDK, tracking pixel, crash-reporting service, or remote account sync in the current app.")
-                TrustLine("Reminder notifications are local to this device and are scheduled using your locally stored account status.")
-                TrustLine("Diagnostics export is manual. Nothing is sent anywhere unless you explicitly share the exported file yourself.")
+                TrustLine(
+                    "There is no analytics SDK, tracking pixel, crash-reporting service, " +
+                        "or remote account sync in the current app."
+                )
+                TrustLine(
+                    "Reminder notifications are local to this device and are scheduled " +
+                        "using your locally stored account status."
+                )
+                TrustLine(
+                    "Diagnostics export is manual. Nothing is sent anywhere unless you " +
+                        "explicitly share the exported file yourself."
+                )
             }
 
             TrustCard(title: "Security") {
-                TrustLine("Authentication uses Real-Debrid's official OAuth2 device flow rather than password collection.")
+                TrustLine(
+                    "Authentication uses Real-Debrid's official OAuth2 device flow rather " +
+                        "than password collection."
+                )
                 TrustLine("Android stores auth state with EncryptedSharedPreferences.")
-                TrustLine("iOS stores auth state in Keychain and migrates legacy NSUserDefaults auth state on first read.")
-                TrustLine("Disconnect clears saved auth state and cancels reminders. DebridHub does not need a companion server to function.")
+                TrustLine(
+                    "iOS stores auth state in Keychain and migrates legacy NSUserDefaults " +
+                        "auth state on first read."
+                )
+                TrustLine(
+                    "Disconnect clears saved auth state and cancels reminders. DebridHub " +
+                        "does not need a companion server to function."
+                )
             }
 
             TrustCard(title: "Diagnostics") {
-                TrustLine("Diagnostics export currently includes app version, OS version, last sync timestamp, account expiry state, and limited non-sensitive runtime flags.")
-                TrustLine("Diagnostics export excludes access tokens, refresh tokens, client secrets, username, email, and full account history.")
+                TrustLine(
+                    "Diagnostics export currently includes app version, OS version, last " +
+                        "sync timestamp, account expiry state, and limited non-sensitive runtime flags."
+                )
+                TrustLine(
+                    "Diagnostics export excludes access tokens, refresh tokens, client " +
+                        "secrets, username, email, and full account history."
+                )
 
                 HStack(spacing: 12) {
                     Button(viewModel.isLoadingDiagnosticsPreview ? "Loading..." : "Refresh Preview") {
@@ -363,9 +409,19 @@ struct ContentView: View {
             }
 
             TrustCard(title: "About & Compliance") {
-                TrustLine("Current scope is intentionally narrow: account auth, account-status reads, local reminder scheduling, and local diagnostics export.")
-                TrustLine("The app does not currently implement unrestrict, downloads, torrent management, streaming, generated-link sharing, or multi-user account management.")
-                TrustLine("DebridHub uses official Real-Debrid API endpoints and the documented device-auth flow. Users are still responsible for following Real-Debrid's own Terms and account rules.")
+                TrustLine(
+                    "Current scope is intentionally narrow: account auth, account-status " +
+                        "reads, local reminder scheduling, and local diagnostics export."
+                )
+                TrustLine(
+                    "The app does not currently implement unrestrict, downloads, torrent " +
+                        "management, streaming, generated-link sharing, or multi-user account management."
+                )
+                TrustLine(
+                    "DebridHub uses official Real-Debrid API endpoints and the documented " +
+                        "device-auth flow. Users are still responsible for following " +
+                        "Real-Debrid's own Terms and account rules."
+                )
             }
         }
     }

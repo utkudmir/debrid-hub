@@ -202,7 +202,8 @@ final class IOSAppViewModel: ObservableObject {
 
     init(
         service: any IOSAppServiceProtocol = IOSAppService(appVersion: "1.0.0"),
-        notificationPermissionProvider: any NotificationPermissionStateProviding = SystemNotificationPermissionStateProvider(),
+        notificationPermissionProvider: any NotificationPermissionStateProviding =
+            SystemNotificationPermissionStateProvider(),
         settingsOpener: any SettingsOpening = SystemSettingsOpener(),
         autoBootstrap: Bool = true
     ) {
@@ -525,7 +526,7 @@ final class IOSAppViewModel: ObservableObject {
     private func presentableMessage(for error: Error) -> String {
         let nsError = error as NSError
         if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorSecureConnectionFailed {
-            return "Secure connection to Real-Debrid failed. Your network appears to be intercepting or downgrading HTTPS traffic to api.real-debrid.com. Disable captive portals, VPNs, secure web gateways, or TLS inspection, or try a different network."
+            return secureConnectionFailureMessage
         }
 
         let message = nsError.localizedDescription
@@ -537,7 +538,7 @@ final class IOSAppViewModel: ObservableObject {
             message.localizedCaseInsensitiveContains("protocol version") ||
             message.localizedCaseInsensitiveContains("handshake") ||
             message.localizedCaseInsensitiveContains("middlebox") {
-            return "Secure connection to Real-Debrid failed. Your network appears to be intercepting or downgrading HTTPS traffic to api.real-debrid.com. Disable captive portals, VPNs, secure web gateways, or TLS inspection, or try a different network."
+            return secureConnectionFailureMessage
         }
 
         if message.localizedCaseInsensitiveContains("unable to resolve host") ||
@@ -548,5 +549,11 @@ final class IOSAppViewModel: ObservableObject {
         }
 
         return message
+    }
+
+    private var secureConnectionFailureMessage: String {
+        "Secure connection to Real-Debrid failed. Your network appears to be intercepting " +
+            "or downgrading HTTPS traffic to api.real-debrid.com. Disable captive portals, " +
+            "VPNs, secure web gateways, or TLS inspection, or try a different network."
     }
 }

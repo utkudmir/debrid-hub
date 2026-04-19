@@ -1,5 +1,5 @@
-import XCTest
 import Shared
+import XCTest
 
 #if canImport(DebridHub)
 @testable import DebridHub
