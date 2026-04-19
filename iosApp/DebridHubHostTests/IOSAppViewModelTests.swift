@@ -8,6 +8,41 @@ import Shared
 #endif
 
 final class IOSAppViewModelTests: XCTestCase {
+    func testStartAuthorizationIgnoresDuplicateRequestWhileStarting() async {
+        let service = FakeIOSAppService(
+            startSession: AuthorizationSessionState(
+                userCode: "ABCD-1234",
+                verificationURL: "https://real-debrid.com/device",
+                directVerificationURL: "https://real-debrid.com/device/confirm",
+                expiresAt: nil,
+                pollIntervalSeconds: 10
+            ),
+            pollResults: [.pending]
+        )
+        service.startAuthorizationDelayNanoseconds = 1_000_000_000
+
+        let viewModel = await MainActor.run {
+            IOSAppViewModel(
+                service: service,
+                notificationPermissionProvider: StubNotificationPermissionStateProvider(state: .unknown),
+                settingsOpener: StubSettingsOpener(),
+                autoBootstrap: false
+            )
+        }
+
+        await MainActor.run {
+            viewModel.startAuthorization()
+            viewModel.startAuthorization()
+        }
+
+        try? await Task.sleep(nanoseconds: 1_100_000_000)
+
+        await MainActor.run {
+            XCTAssertEqual(1, service.startAuthorizationCallCount)
+            XCTAssertEqual("ABCD-1234", viewModel.userCode)
+        }
+    }
+
     func testStartAuthorizationFailureSurfacesError() async {
         let service = FakeIOSAppService(
             startSession: AuthorizationSessionState(
@@ -175,6 +210,46 @@ final class IOSAppViewModelTests: XCTestCase {
         }
     }
 
+    func testStartAuthorizationIgnoresDuplicateRequestWhilePolling() async {
+        let service = FakeIOSAppService(
+            startSession: AuthorizationSessionState(
+                userCode: "ABCD-1234",
+                verificationURL: "https://real-debrid.com/device",
+                directVerificationURL: "https://real-debrid.com/device/confirm",
+                expiresAt: nil,
+                pollIntervalSeconds: 10
+            ),
+            pollResults: [.pending]
+        )
+        let viewModel = await MainActor.run {
+            IOSAppViewModel(
+                service: service,
+                notificationPermissionProvider: StubNotificationPermissionStateProvider(state: .unknown),
+                settingsOpener: StubSettingsOpener(),
+                autoBootstrap: false
+            )
+        }
+
+        await MainActor.run {
+            viewModel.startAuthorization()
+        }
+        await waitUntil {
+            await MainActor.run { viewModel.userCode != nil }
+        }
+        await MainActor.run {
+            viewModel.startAuthorization()
+        }
+
+        await MainActor.run {
+            XCTAssertEqual(1, service.startAuthorizationCallCount)
+            XCTAssertEqual("ABCD-1234", viewModel.userCode)
+        }
+
+        await MainActor.run {
+            viewModel.cancelAuthorization()
+        }
+    }
+
     func testCancelAuthorizationStopsPollingAndKeepsUserUnauthenticated() async {
         let service = FakeIOSAppService(
             startSession: AuthorizationSessionState(
@@ -250,6 +325,105 @@ final class IOSAppViewModelTests: XCTestCase {
             XCTAssertEqual("Notifications enabled.", viewModel.infoMessage)
             XCTAssertEqual(.granted, viewModel.notificationPermissionState)
             XCTAssertEqual(1, service.requestNotificationPermissionCallCount)
+        }
+    }
+
+    func testRequestNotificationsGrantedResyncsWhenAuthenticated() async {
+        let service = FakeIOSAppService(
+            startSession: AuthorizationSessionState(
+                userCode: "ABCD-1234",
+                verificationURL: "https://real-debrid.com/device",
+                directVerificationURL: nil,
+                expiresAt: nil,
+                pollIntervalSeconds: 10
+            ),
+            pollResults: [.pending]
+        )
+        service.isAuthenticatedValue = true
+        service.requestNotificationPermissionResult = .success(true)
+        service.previewRemindersResult = .success([
+            ScheduledReminder(
+                fireAt: Kotlinx_datetimeInstant.companion.fromEpochSeconds(
+                    epochSeconds: 1_776_675_600,
+                    nanosecondAdjustment: 0
+                ),
+                message: "3 days left"
+            )
+        ])
+
+        let viewModel = await MainActor.run {
+            IOSAppViewModel(
+                service: service,
+                notificationPermissionProvider: StubNotificationPermissionStateProvider(state: .granted),
+                settingsOpener: StubSettingsOpener(),
+                autoBootstrap: false
+            )
+        }
+
+        await MainActor.run {
+            viewModel.isAuthenticated = true
+            viewModel.requestNotifications()
+        }
+        await waitUntil {
+            await MainActor.run { viewModel.infoMessage != nil }
+        }
+
+        await MainActor.run {
+            XCTAssertEqual("Notifications enabled.", viewModel.infoMessage)
+            XCTAssertEqual(1, service.syncRemindersCallCount)
+            XCTAssertEqual(1, service.previewRemindersCallCount)
+            XCTAssertEqual(1, viewModel.scheduledReminders.count)
+        }
+    }
+
+    func testRequestNotificationsDeniedDoesNotSyncWhenAuthenticated() async {
+        let service = FakeIOSAppService(
+            startSession: AuthorizationSessionState(
+                userCode: "ABCD-1234",
+                verificationURL: "https://real-debrid.com/device",
+                directVerificationURL: nil,
+                expiresAt: nil,
+                pollIntervalSeconds: 10
+            ),
+            pollResults: [.pending]
+        )
+        service.isAuthenticatedValue = true
+        service.requestNotificationPermissionResult = .success(false)
+        service.previewRemindersResult = .success([
+            ScheduledReminder(
+                fireAt: Kotlinx_datetimeInstant.companion.fromEpochSeconds(
+                    epochSeconds: 1_776_675_600,
+                    nanosecondAdjustment: 0
+                ),
+                message: "preview"
+            )
+        ])
+
+        let viewModel = await MainActor.run {
+            IOSAppViewModel(
+                service: service,
+                notificationPermissionProvider: StubNotificationPermissionStateProvider(state: .denied),
+                settingsOpener: StubSettingsOpener(),
+                autoBootstrap: false
+            )
+        }
+
+        await MainActor.run {
+            viewModel.isAuthenticated = true
+            viewModel.requestNotifications()
+        }
+        await waitUntil {
+            await MainActor.run { viewModel.infoMessage != nil }
+        }
+
+        await MainActor.run {
+            XCTAssertEqual(
+                "Notifications remain disabled. Open system settings if you want reminder alerts.",
+                viewModel.infoMessage
+            )
+            XCTAssertEqual(0, service.syncRemindersCallCount)
+            XCTAssertEqual(1, service.previewRemindersCallCount)
+            XCTAssertEqual(1, viewModel.scheduledReminders.count)
         }
     }
 
@@ -393,6 +567,42 @@ final class IOSAppViewModelTests: XCTestCase {
             XCTAssertEqual("{\"os\":\"iOS 18\"}", viewModel.diagnosticsPreview)
             XCTAssertFalse(viewModel.isLoadingDiagnosticsPreview)
             XCTAssertNil(viewModel.errorMessage)
+        }
+    }
+
+    func testLoadDiagnosticsPreviewIgnoresDuplicateInFlightRequest() async {
+        let service = FakeIOSAppService(
+            startSession: AuthorizationSessionState(
+                userCode: "ABCD-1234",
+                verificationURL: "https://real-debrid.com/device",
+                directVerificationURL: nil,
+                expiresAt: nil,
+                pollIntervalSeconds: 10
+            ),
+            pollResults: [.pending]
+        )
+        service.previewDiagnosticsResult = .success("{\"os\":\"iOS 18\"}")
+        service.previewDiagnosticsDelayNanoseconds = 1_000_000_000
+
+        let viewModel = await MainActor.run {
+            IOSAppViewModel(
+                service: service,
+                notificationPermissionProvider: StubNotificationPermissionStateProvider(state: .unknown),
+                settingsOpener: StubSettingsOpener(),
+                autoBootstrap: false
+            )
+        }
+
+        await MainActor.run {
+            viewModel.loadDiagnosticsPreview()
+            viewModel.loadDiagnosticsPreview()
+        }
+
+        try? await Task.sleep(nanoseconds: 1_100_000_000)
+
+        await MainActor.run {
+            XCTAssertEqual(1, service.previewDiagnosticsCallCount)
+            XCTAssertEqual("{\"os\":\"iOS 18\"}", viewModel.diagnosticsPreview)
         }
     }
 
@@ -585,6 +795,183 @@ final class IOSAppViewModelTests: XCTestCase {
         }
     }
 
+    func testToggleReminderDayUpdatesSnapshotForEachSupportedDay() async {
+        let service = FakeIOSAppService(
+            startSession: AuthorizationSessionState(
+                userCode: "ABCD-1234",
+                verificationURL: "https://real-debrid.com/device",
+                directVerificationURL: nil,
+                expiresAt: nil,
+                pollIntervalSeconds: 10
+            ),
+            pollResults: [.pending]
+        )
+
+        let viewModel = await MainActor.run {
+            IOSAppViewModel(
+                service: service,
+                notificationPermissionProvider: StubNotificationPermissionStateProvider(state: .unknown),
+                settingsOpener: StubSettingsOpener(),
+                autoBootstrap: false
+            )
+        }
+
+        await MainActor.run {
+            viewModel.toggleReminderDay(7)
+            viewModel.toggleReminderDay(3)
+            viewModel.toggleReminderDay(1)
+        }
+        await waitUntil {
+            await MainActor.run { service.updatedReminderSnapshots.count >= 3 }
+        }
+
+        await MainActor.run {
+            XCTAssertEqual(false, service.updatedReminderSnapshots[0].sevenDayReminder)
+            XCTAssertEqual(false, service.updatedReminderSnapshots[1].threeDayReminder)
+            XCTAssertEqual(false, service.updatedReminderSnapshots[2].oneDayReminder)
+        }
+    }
+
+    func testToggleReminderDayIgnoresInvalidInput() async {
+        let service = FakeIOSAppService(
+            startSession: AuthorizationSessionState(
+                userCode: "ABCD-1234",
+                verificationURL: "https://real-debrid.com/device",
+                directVerificationURL: nil,
+                expiresAt: nil,
+                pollIntervalSeconds: 10
+            ),
+            pollResults: [.pending]
+        )
+
+        let viewModel = await MainActor.run {
+            IOSAppViewModel(
+                service: service,
+                notificationPermissionProvider: StubNotificationPermissionStateProvider(state: .unknown),
+                settingsOpener: StubSettingsOpener(),
+                autoBootstrap: false
+            )
+        }
+
+        await MainActor.run {
+            viewModel.toggleReminderDay(42)
+        }
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        await MainActor.run {
+            XCTAssertEqual(0, service.updatedReminderSnapshots.count)
+        }
+    }
+
+    func testNotifyFlagUpdatesPersistSnapshot() async {
+        let service = FakeIOSAppService(
+            startSession: AuthorizationSessionState(
+                userCode: "ABCD-1234",
+                verificationURL: "https://real-debrid.com/device",
+                directVerificationURL: nil,
+                expiresAt: nil,
+                pollIntervalSeconds: 10
+            ),
+            pollResults: [.pending]
+        )
+
+        let viewModel = await MainActor.run {
+            IOSAppViewModel(
+                service: service,
+                notificationPermissionProvider: StubNotificationPermissionStateProvider(state: .unknown),
+                settingsOpener: StubSettingsOpener(),
+                autoBootstrap: false
+            )
+        }
+
+        await MainActor.run {
+            viewModel.setNotifyOnExpiry(false)
+            viewModel.setNotifyAfterExpiry(true)
+        }
+        await waitUntil {
+            await MainActor.run { service.updatedReminderSnapshots.count >= 2 }
+        }
+
+        await MainActor.run {
+            XCTAssertEqual(false, service.updatedReminderSnapshots[0].notifyOnExpiry)
+            XCTAssertEqual(true, service.updatedReminderSnapshots[1].notifyAfterExpiry)
+        }
+    }
+
+    func testReminderMutationResyncsWhenAuthenticated() async {
+        let service = FakeIOSAppService(
+            startSession: AuthorizationSessionState(
+                userCode: "ABCD-1234",
+                verificationURL: "https://real-debrid.com/device",
+                directVerificationURL: nil,
+                expiresAt: nil,
+                pollIntervalSeconds: 10
+            ),
+            pollResults: [.pending]
+        )
+        service.previewRemindersResult = .success([
+            ScheduledReminder(
+                fireAt: Kotlinx_datetimeInstant.companion.fromEpochSeconds(
+                    epochSeconds: 1_776_675_600,
+                    nanosecondAdjustment: 0
+                ),
+                message: "scheduled"
+            )
+        ])
+
+        let viewModel = await MainActor.run {
+            IOSAppViewModel(
+                service: service,
+                notificationPermissionProvider: StubNotificationPermissionStateProvider(state: .granted),
+                settingsOpener: StubSettingsOpener(),
+                autoBootstrap: false
+            )
+        }
+
+        await MainActor.run {
+            viewModel.isAuthenticated = true
+            viewModel.setReminderEnabled(false)
+        }
+        await waitUntil {
+            await MainActor.run { service.syncRemindersCallCount == 1 }
+        }
+
+        await MainActor.run {
+            XCTAssertEqual(1, service.syncRemindersCallCount)
+            XCTAssertEqual(1, service.previewRemindersCallCount)
+            XCTAssertEqual(1, viewModel.scheduledReminders.count)
+        }
+    }
+
+    func testOpenAppSettingsDelegatesToInjectedOpener() async {
+        let service = FakeIOSAppService(
+            startSession: AuthorizationSessionState(
+                userCode: "ABCD-1234",
+                verificationURL: "https://real-debrid.com/device",
+                directVerificationURL: nil,
+                expiresAt: nil,
+                pollIntervalSeconds: 10
+            ),
+            pollResults: [.pending]
+        )
+        let settingsOpener = RecordingSettingsOpener()
+        let viewModel = await MainActor.run {
+            IOSAppViewModel(
+                service: service,
+                notificationPermissionProvider: StubNotificationPermissionStateProvider(state: .unknown),
+                settingsOpener: settingsOpener,
+                autoBootstrap: false
+            )
+        }
+
+        await MainActor.run {
+            viewModel.openAppSettings()
+        }
+
+        let callCount = await MainActor.run { settingsOpener.callCount() }
+        XCTAssertEqual(1, callCount)
+    }
+
     func testPollAuthorizationAuthorizedCompletesFlowAndClearsOnboarding() async {
         let service = FakeIOSAppService(
             startSession: AuthorizationSessionState(
@@ -744,6 +1131,7 @@ private final class FakeIOSAppService: IOSAppServiceProtocol {
     private var pollResults: [AuthorizationPollState]
     var isAuthenticatedValue: Bool = false
     var startAuthorizationResult: Result<AuthorizationSessionState, Error>
+    var startAuthorizationDelayNanoseconds: UInt64 = 0
     var reminderConfigSnapshot = ReminderConfigSnapshot(
         enabled: true,
         sevenDayReminder: true,
@@ -758,6 +1146,7 @@ private final class FakeIOSAppService: IOSAppServiceProtocol {
         ExportedFile(displayName: "diagnostics.json", location: "/tmp/diagnostics.json")
     )
     var previewDiagnosticsResult: Result<String, Error> = .success("{}")
+    var previewDiagnosticsDelayNanoseconds: UInt64 = 0
     var updatedReminderSnapshots: [ReminderConfigSnapshot] = []
     var syncRemindersResult: Result<Int, Error> = .success(0)
     var previewRemindersResult: Result<[ScheduledReminder], Error> = .success([])
@@ -765,8 +1154,10 @@ private final class FakeIOSAppService: IOSAppServiceProtocol {
     var refreshAccountStatusCallCount = 0
     var syncRemindersCallCount = 0
     var previewRemindersCallCount = 0
+    var previewDiagnosticsCallCount = 0
     var requestNotificationPermissionCallCount = 0
     var disconnectCallCount = 0
+    var startAuthorizationCallCount = 0
 
     init(
         startSession: AuthorizationSessionState,
@@ -786,7 +1177,11 @@ private final class FakeIOSAppService: IOSAppServiceProtocol {
     func isAuthenticated() async throws -> Bool { isAuthenticatedValue }
 
     func startAuthorization() async throws -> AuthorizationSessionState {
-        try startAuthorizationResult.get()
+        startAuthorizationCallCount += 1
+        if startAuthorizationDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: startAuthorizationDelayNanoseconds)
+        }
+        return try startAuthorizationResult.get()
     }
 
     func pollAuthorization() async throws -> AuthorizationPollState {
@@ -828,7 +1223,11 @@ private final class FakeIOSAppService: IOSAppServiceProtocol {
     }
 
     func previewDiagnostics() async throws -> String {
-        try previewDiagnosticsResult.get()
+        previewDiagnosticsCallCount += 1
+        if previewDiagnosticsDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: previewDiagnosticsDelayNanoseconds)
+        }
+        return try previewDiagnosticsResult.get()
     }
 }
 
@@ -876,4 +1275,17 @@ private struct StubNotificationPermissionStateProvider: NotificationPermissionSt
 
 private struct StubSettingsOpener: SettingsOpening {
     func openAppSettings() {}
+}
+
+private final class RecordingSettingsOpener: SettingsOpening {
+    private(set) var calls = 0
+
+    func openAppSettings() {
+        calls += 1
+    }
+
+    @MainActor
+    func callCount() -> Int {
+        calls
+    }
 }

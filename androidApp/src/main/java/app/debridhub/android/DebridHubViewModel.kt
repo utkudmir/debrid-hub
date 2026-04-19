@@ -194,6 +194,7 @@ class DebridHubViewModel(
     }
 
     fun toggleReminderDay(day: Int) {
+        if (day !in setOf(1, 3, 7)) return
         mutateReminderConfig {
             val nextDays = if (daysBefore.contains(day)) daysBefore - day else daysBefore + day
             copy(daysBefore = nextDays)
@@ -235,8 +236,8 @@ class DebridHubViewModel(
 
     fun loadDiagnosticsPreview() {
         if (_uiState.value.isLoadingDiagnosticsPreview) return
+        _uiState.update { it.copy(isLoadingDiagnosticsPreview = true) }
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingDiagnosticsPreview = true) }
             previewDiagnosticsUseCase()
                 .onSuccess { preview ->
                     _uiState.update {

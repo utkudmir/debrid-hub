@@ -19,6 +19,7 @@ import app.debridhub.shared.platform.FileExporter
 import app.debridhub.shared.platform.NotificationScheduler
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.test.advanceTimeBy
@@ -298,6 +299,63 @@ class DebridHubViewModelTest {
     }
 
     @Test
+    fun `start authorization ignores duplicate request while polling is active`() = runTest {
+        val session = DeviceAuthSession(
+            userCode = "ABCD-EFGH",
+            verificationUrl = "https://real-debrid.com/device",
+            directVerificationUrl = "https://real-debrid.com/device/direct",
+            pollIntervalSeconds = 30,
+            expiresAt = Instant.parse("2026-04-18T10:00:00Z")
+        )
+        val authRepository = FakeAuthRepository(
+            startAuthorizationResult = Result.success(session),
+            pollResults = ArrayDeque(listOf(AuthPollResult.Pending))
+        )
+        val viewModel = buildViewModel(authRepository = authRepository)
+
+        advanceUntilIdle()
+        viewModel.startAuthorization()
+        runCurrent()
+        viewModel.startAuthorization()
+        runCurrent()
+
+        assertEquals(1, authRepository.startAuthorizationCallCount)
+        assertTrue(viewModel.uiState.value.onboarding.isPolling)
+        viewModel.cancelAuthorization()
+        runCurrent()
+    }
+
+    @Test
+    fun `start authorization ignores duplicate request while start is in-flight`() = runTest {
+        val session = DeviceAuthSession(
+            userCode = "ABCD-EFGH",
+            verificationUrl = "https://real-debrid.com/device",
+            directVerificationUrl = "https://real-debrid.com/device/direct",
+            pollIntervalSeconds = 30,
+            expiresAt = Instant.parse("2026-04-18T10:00:00Z")
+        )
+        val authRepository = FakeAuthRepository(
+            startAuthorizationResult = Result.success(session),
+            pollResults = ArrayDeque(listOf(AuthPollResult.Pending)),
+            startAuthorizationDelayMillis = 1_000
+        )
+        val viewModel = buildViewModel(authRepository = authRepository)
+
+        advanceUntilIdle()
+        viewModel.startAuthorization()
+        runCurrent()
+        viewModel.startAuthorization()
+        runCurrent()
+        advanceTimeBy(1_100)
+        runCurrent()
+
+        assertEquals(1, authRepository.startAuthorizationCallCount)
+        assertTrue(viewModel.uiState.value.onboarding.isPolling)
+        viewModel.cancelAuthorization()
+        runCurrent()
+    }
+
+    @Test
     fun `polling expiry clears onboarding and surfaces expiration message`() = runTest {
         val session = DeviceAuthSession(
             userCode = "ABCD-EFGH",
@@ -470,6 +528,171 @@ class DebridHubViewModelTest {
         assertEquals(null, viewModel.uiState.value.errorMessage)
     }
 
+    @Test
+    fun `load diagnostics preview ignores duplicate in-flight request`() = runTest {
+        val diagnosticsRepository = FakeDiagnosticsRepository(collectDelayMillis = 1_000)
+        val viewModel = buildViewModel(diagnosticsRepository = diagnosticsRepository)
+
+        advanceUntilIdle()
+        viewModel.loadDiagnosticsPreview()
+        runCurrent()
+        viewModel.loadDiagnosticsPreview()
+        runCurrent()
+        advanceTimeBy(1_100)
+        advanceUntilIdle()
+
+        assertEquals(1, diagnosticsRepository.collectCallCount)
+        assertTrue(viewModel.uiState.value.diagnosticsPreview?.contains("Android 16") == true)
+    }
+
+    @Test
+    fun `toggle reminder day updates config and resyncs for authenticated account`() = runTest {
+        val status = sampleAccountStatus()
+        val reminderRepository = FakeReminderRepository(
+            config = ReminderConfig(enabled = true, daysBefore = setOf(7, 3), notifyOnExpiry = true, notifyAfterExpiry = false),
+            preview = listOf(ScheduledReminder(Instant.parse("2026-04-20T09:00:00Z"), "preview")),
+            scheduled = listOf(ScheduledReminder(Instant.parse("2026-04-22T09:00:00Z"), "scheduled"))
+        )
+        val viewModel = buildViewModel(
+            accountRepository = FakeAccountRepository(refreshResult = Result.success(status)),
+            reminderRepository = reminderRepository,
+            notificationScheduler = FakeNotificationScheduler(enabled = true)
+        )
+
+        advanceUntilIdle()
+        viewModel.refreshAccountStatus()
+        advanceUntilIdle()
+        val baselineSchedules = reminderRepository.scheduleCallCount
+        val baselineUpdates = reminderRepository.updateConfigCallCount
+
+        viewModel.toggleReminderDay(7)
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.reminderConfig.daysBefore.contains(7))
+
+        viewModel.toggleReminderDay(7)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.reminderConfig.daysBefore.contains(7))
+
+        assertEquals(baselineUpdates + 2, reminderRepository.updateConfigCallCount)
+        assertEquals(baselineSchedules + 2, reminderRepository.scheduleCallCount)
+    }
+
+    @Test
+    fun `toggle reminder day ignores invalid input`() = runTest {
+        val reminderRepository = FakeReminderRepository(
+            config = ReminderConfig(enabled = true, daysBefore = setOf(7, 3), notifyOnExpiry = true, notifyAfterExpiry = false)
+        )
+        val viewModel = buildViewModel(reminderRepository = reminderRepository)
+
+        advanceUntilIdle()
+        val before = viewModel.uiState.value.reminderConfig
+        val baselineUpdates = reminderRepository.updateConfigCallCount
+        viewModel.toggleReminderDay(42)
+        advanceUntilIdle()
+
+        assertEquals(before, viewModel.uiState.value.reminderConfig)
+        assertEquals(baselineUpdates, reminderRepository.updateConfigCallCount)
+    }
+
+    @Test
+    fun `notify flag updates persist and resync for authenticated account`() = runTest {
+        val status = sampleAccountStatus()
+        val reminderRepository = FakeReminderRepository(
+            config = ReminderConfig(enabled = true, daysBefore = setOf(7, 3), notifyOnExpiry = true, notifyAfterExpiry = false),
+            preview = listOf(ScheduledReminder(Instant.parse("2026-04-20T09:00:00Z"), "preview")),
+            scheduled = listOf(ScheduledReminder(Instant.parse("2026-04-22T09:00:00Z"), "scheduled"))
+        )
+        val viewModel = buildViewModel(
+            accountRepository = FakeAccountRepository(refreshResult = Result.success(status)),
+            reminderRepository = reminderRepository,
+            notificationScheduler = FakeNotificationScheduler(enabled = true)
+        )
+
+        advanceUntilIdle()
+        viewModel.refreshAccountStatus()
+        advanceUntilIdle()
+        val baselineSchedules = reminderRepository.scheduleCallCount
+        val baselineUpdates = reminderRepository.updateConfigCallCount
+
+        viewModel.setNotifyOnExpiry(false)
+        viewModel.setNotifyAfterExpiry(true)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.reminderConfig.notifyOnExpiry)
+        assertTrue(viewModel.uiState.value.reminderConfig.notifyAfterExpiry)
+        assertEquals(baselineUpdates + 2, reminderRepository.updateConfigCallCount)
+        assertEquals(baselineSchedules + 2, reminderRepository.scheduleCallCount)
+    }
+
+    @Test
+    fun `set reminder enabled when unauthenticated updates config without scheduling`() = runTest {
+        val reminderRepository = FakeReminderRepository(config = ReminderConfig(enabled = true, daysBefore = setOf(7)))
+        val viewModel = buildViewModel(
+            authRepository = FakeAuthRepository(isAuthenticated = false),
+            reminderRepository = reminderRepository,
+            notificationScheduler = FakeNotificationScheduler(enabled = true)
+        )
+
+        advanceUntilIdle()
+        viewModel.setReminderEnabled(false)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.reminderConfig.enabled)
+        assertEquals(1, reminderRepository.updateConfigCallCount)
+        assertEquals(0, reminderRepository.scheduleCallCount)
+    }
+
+    @Test
+    fun `notification grant resyncs reminders for authenticated account`() = runTest {
+        val status = sampleAccountStatus()
+        val reminderRepository = FakeReminderRepository(
+            preview = listOf(ScheduledReminder(Instant.parse("2026-04-20T09:00:00Z"), "preview")),
+            scheduled = listOf(ScheduledReminder(Instant.parse("2026-04-22T09:00:00Z"), "scheduled"))
+        )
+        val viewModel = buildViewModel(
+            accountRepository = FakeAccountRepository(refreshResult = Result.success(status)),
+            reminderRepository = reminderRepository,
+            notificationScheduler = FakeNotificationScheduler(enabled = true)
+        )
+
+        advanceUntilIdle()
+        viewModel.refreshAccountStatus()
+        advanceUntilIdle()
+        val baselineSchedules = reminderRepository.scheduleCallCount
+
+        viewModel.onNotificationPermissionResult(granted = true)
+        advanceUntilIdle()
+
+        assertEquals("Notifications enabled.", viewModel.uiState.value.infoMessage)
+        assertEquals(NotificationPermissionUiState.Granted, viewModel.uiState.value.notificationPermissionState)
+        assertEquals(baselineSchedules + 1, reminderRepository.scheduleCallCount)
+    }
+
+    @Test
+    fun `request notification when already enabled resyncs reminders for authenticated account`() = runTest {
+        val status = sampleAccountStatus()
+        val reminderRepository = FakeReminderRepository(
+            preview = listOf(ScheduledReminder(Instant.parse("2026-04-20T09:00:00Z"), "preview")),
+            scheduled = listOf(ScheduledReminder(Instant.parse("2026-04-22T09:00:00Z"), "scheduled"))
+        )
+        val viewModel = buildViewModel(
+            accountRepository = FakeAccountRepository(refreshResult = Result.success(status)),
+            reminderRepository = reminderRepository,
+            notificationScheduler = FakeNotificationScheduler(enabled = true)
+        )
+
+        advanceUntilIdle()
+        viewModel.refreshAccountStatus()
+        advanceUntilIdle()
+        val baselineSchedules = reminderRepository.scheduleCallCount
+
+        viewModel.requestNotificationPermission()
+        advanceUntilIdle()
+
+        assertEquals("Notifications are already enabled.", viewModel.uiState.value.infoMessage)
+        assertEquals(baselineSchedules + 1, reminderRepository.scheduleCallCount)
+    }
+
     private fun buildViewModel(
         authRepository: FakeAuthRepository = FakeAuthRepository(),
         accountRepository: FakeAccountRepository = FakeAccountRepository(),
@@ -509,12 +732,20 @@ class DebridHubViewModelTest {
     private class FakeAuthRepository(
         private val isAuthenticated: Boolean = false,
         private val startAuthorizationResult: Result<DeviceAuthSession> = Result.failure(IllegalStateException("unused")),
-        private val pollResults: ArrayDeque<AuthPollResult> = ArrayDeque()
+        private val pollResults: ArrayDeque<AuthPollResult> = ArrayDeque(),
+        private val startAuthorizationDelayMillis: Long = 0
     ) : AuthRepository {
         var disconnectCalled = false
         var pollCallCount = 0
+        var startAuthorizationCallCount = 0
 
-        override suspend fun startAuthorization(): DeviceAuthSession = startAuthorizationResult.getOrThrow()
+        override suspend fun startAuthorization(): DeviceAuthSession {
+            startAuthorizationCallCount += 1
+            if (startAuthorizationDelayMillis > 0) {
+                delay(startAuthorizationDelayMillis)
+            }
+            return startAuthorizationResult.getOrThrow()
+        }
 
         override suspend fun pollAuthorization(): AuthPollResult =
             pollResults.removeFirstOrNull()?.also { pollCallCount += 1 } ?: error("unused")
@@ -552,10 +783,12 @@ class DebridHubViewModelTest {
         var cancelCallCount = 0
         var scheduleCallCount = 0
         var previewCallCount = 0
+        var updateConfigCallCount = 0
 
         override suspend fun getConfig(): ReminderConfig = config
 
         override suspend fun updateConfig(config: ReminderConfig) {
+            updateConfigCallCount += 1
             this.config = config
         }
 
@@ -594,9 +827,16 @@ class DebridHubViewModelTest {
             accountState = null,
             additionalInfo = emptyMap()
         ),
-        private val failure: Throwable? = null
+        private val failure: Throwable? = null,
+        private val collectDelayMillis: Long = 0
     ) : DiagnosticsRepository {
+        var collectCallCount = 0
+
         override suspend fun collectDiagnostics(): DiagnosticsBundle {
+            collectCallCount += 1
+            if (collectDelayMillis > 0) {
+                delay(collectDelayMillis)
+            }
             failure?.let { throw it }
             return bundle
         }

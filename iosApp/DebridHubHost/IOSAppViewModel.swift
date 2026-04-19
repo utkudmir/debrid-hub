@@ -193,6 +193,7 @@ final class IOSAppViewModel: ObservableObject {
     private let service: any IOSAppServiceProtocol
     private let notificationPermissionProvider: any NotificationPermissionStateProviding
     private let settingsOpener: any SettingsOpening
+    private var isStartingAuthorization = false
     private var pollingTask: Task<Void, Never>?
 
     deinit {
@@ -234,12 +235,15 @@ final class IOSAppViewModel: ObservableObject {
     }
 
     func startAuthorization() {
+        guard !isStartingAuthorization, pollingTask == nil else { return }
+        isStartingAuthorization = true
         pollingTask?.cancel()
         clearMessages()
         clearAuthorizationSession()
         Task {
             do {
                 let session = try await service.startAuthorization()
+                isStartingAuthorization = false
                 userCode = session.userCode
                 verificationURL = session.verificationURL
                 directVerificationURL = session.directVerificationURL
@@ -250,6 +254,7 @@ final class IOSAppViewModel: ObservableObject {
                 }
                 pollAuthorization(interval: session.pollIntervalSeconds)
             } catch {
+                isStartingAuthorization = false
                 if error is CancellationError { return }
                 clearAuthorizationSession()
                 showError(error)
@@ -258,7 +263,9 @@ final class IOSAppViewModel: ObservableObject {
     }
 
     func cancelAuthorization() {
+        isStartingAuthorization = false
         pollingTask?.cancel()
+        pollingTask = nil
         clearAuthorizationSession()
     }
 
@@ -286,7 +293,9 @@ final class IOSAppViewModel: ObservableObject {
                 let granted = try await service.requestNotificationPermission()
                 await refreshNotificationPermissionState()
                 if isAuthenticated {
-                    _ = try await service.syncReminders()
+                    if granted {
+                        _ = try await service.syncReminders()
+                    }
                     scheduledReminders = try await service.previewReminders()
                 }
                 if granted {
@@ -321,8 +330,8 @@ final class IOSAppViewModel: ObservableObject {
 
     func loadDiagnosticsPreview() {
         guard !isLoadingDiagnosticsPreview else { return }
+        isLoadingDiagnosticsPreview = true
         Task {
-            isLoadingDiagnosticsPreview = true
             defer { isLoadingDiagnosticsPreview = false }
             errorMessage = nil
             do {
@@ -334,7 +343,9 @@ final class IOSAppViewModel: ObservableObject {
     }
 
     func disconnect() {
+        isStartingAuthorization = false
         pollingTask?.cancel()
+        pollingTask = nil
         clearMessages()
         clearAuthorizationSession()
         Task {
@@ -424,6 +435,7 @@ final class IOSAppViewModel: ObservableObject {
 
     private func pollAuthorization(interval: Int64) {
         pollingTask = Task {
+            defer { pollingTask = nil }
             while !Task.isCancelled {
                 do {
                     let result = try await service.pollAuthorization()
