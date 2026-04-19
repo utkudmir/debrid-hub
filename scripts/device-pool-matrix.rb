@@ -79,6 +79,19 @@ def android_arch_for_host(_requested_arch, host_arch)
   "x86_64"
 end
 
+def android_ci_device_profile(requested_profile)
+  profile = requested_profile.to_s
+  return "pixel" if profile.empty?
+
+  # Keep CI portable across runner image updates: avdmanager device ids vary,
+  # while the generic Pixel profile is broadly available.
+  if profile.start_with?("pixel_")
+    return "pixel"
+  end
+
+  profile
+end
+
 data = YAML.load_file(DEVICE_POOL_FILE) || {}
 profiles = data.fetch("profiles", {})
 resolved = resolve_profile(verify_profile, profiles)
@@ -105,7 +118,7 @@ when "android"
       "api_level" => api_level,
       "target" => target.empty? ? "google_apis" : target,
       "arch" => arch,
-      "device_profile" => entry["device_profile"].to_s.empty? ? "pixel_7_pro" : entry["device_profile"].to_s,
+      "device_profile" => android_ci_device_profile(entry["device_profile"]),
       "avd_name" => effective_avd_name
     }
   end
