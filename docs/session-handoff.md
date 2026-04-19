@@ -31,15 +31,28 @@
 - `IOSAppViewModelTests` kapsamı Android ViewModel senaryo seti ile hizalandi.
 - Mevcut durumda ViewModel test sayisi parity: Android 16 / iOS 16.
 
-### 5) Lock-step TDD genisletmesi
+### 5) Pushlanan lock-step TDD genisletmesi
+- Commit: `bf72f37` (`origin/main`)
 - `make ios-test` komutu ve `scripts/test-ios-sim.sh` eklendi.
 - Cancel authorization safety slice'i Android+iOS icin eklendi.
 - Diagnostics preview success slice'i Android+iOS icin eklendi.
-- Mevcut local parity: Android 18 / iOS 18.
+
+### 6) Pushlanan authenticated bootstrap lock-step slice
+- Commit: `8022b2a` (`origin/main`)
+- Android + iOS authenticated startup refresh/sync/preview davranisi testlendi.
+- ViewModel parity test matrisi bir sonraki faza hazirlandi.
+
+### 7) Bu tur tamamlanan kalan parity testleri
+- Duplicate/in-flight guardlari tamamlandi (`startAuthorization`, `loadDiagnosticsPreview`).
+- Reminder mutation matrix tamamlandi (`day toggles`, notify flagleri, invalid input no-op).
+- Notification edge parity tamamlandi (granted/denied/failure/already-enabled etkileri).
+- iOS tarafinda `openAppSettings` delegasyonu da native test ile guvenceye alindi.
+- Son test sayilari: Android ViewModel 28, iOS ViewModel 29 (iOS'ta 1 ek native delegasyon testi).
 
 ## Dogrulama Sonuclari (Son Session)
 - `make shared-test` -> PASS
 - `./gradlew :androidApp:lint :androidApp:testDebugUnitTest` -> PASS
+- `make ios-test` -> PASS
 - `make coverage` -> PASS
 - `make ios-build` -> PASS
 - `xcodebuild ... -scheme DebridHubHost ... test` -> PASS
@@ -48,21 +61,20 @@
 - Calisma agaci temiz hedeflenir; yeni ise baslarken `git status` ile dogrula.
 - CI/workflow dosyalarina dokunma (billing limiti acilana kadar).
 
-## Sonraki Plan (TDD, Lock-Step)
-Her madde Android + iOS icin birlikte, RED->GREEN->REFACTOR dikey slice olarak ilerlesin.
+## Sonraki Plan (Test Sonrasi)
+Kalan ana is paketi coverage esigini kontrollu artirmak.
 
-1. Cancel authorization safety:
-   - Polling durur mu, onboarding/session state temizleniyor mu?
-2. Authenticated bootstrap happy path:
-   - Startup sonrasinda refresh/sync/preview etkileri dogrulansin.
-3. Reminder mutation matrix:
-   - `sevenDay`, `threeDay`, `oneDay`, `notifyOnExpiry`, `notifyAfterExpiry`.
-4. Diagnostics preview success path:
-   - Basarili yukleme ile preview/state dogrulansin.
-5. Duplicate/in-flight guard davranislari:
-   - Tekrarlayan start auth / diagnostics preview cagrilarinda idempotent davranis.
-6. Notification edge parity:
-   - Granted/already-granted/denied/failure metin ve akislarinin hizasi.
+1. Coverage uplift hazirlik:
+   - Mevcut test matrisinde flakey risklerini gozle.
+   - Gerekirse sadece stabilite odakli kucuk refactor/test duzeltmeleri yap.
+2. Coverage hedef artisi (ayri degisiklik):
+   - `LINE >= 75`
+   - `BRANCH >= 60`
+3. Hedef artisindan sonra tam dogrulama:
+   - `make shared-test`
+   - `./gradlew :androidApp:lint :androidApp:testDebugUnitTest`
+   - `make ios-test`
+   - `make coverage`
 
 ## Coverage Hedefi (Bir Sonraki Esik)
 - Mevcut baseline korunurken testler stabilize oldugunda bir sonraki hedef:
