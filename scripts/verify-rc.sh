@@ -1856,19 +1856,24 @@ run_ios_device_matrix() {
     else
       run_fail_step "${key_prefix}_env_ready" "iOS [$label] simulator readiness" "${LAST_ERROR:-ios_target_unavailable}" "No available iOS simulator for label '$label'."
       record_device_index "ios" "$slug" "$label" "${primary:-<none>}" "" "$device_dir"
-      run_skip_step "${key_prefix}_build" "iOS [$label] simulator build" "dependency_failed"
-      run_skip_step "${key_prefix}_run" "iOS [$label] simulator run" "dependency_failed"
+      run_skip_step "${key_prefix}_test" "iOS [$label] XCTest suite" "dependency_failed"
+      run_skip_step "${key_prefix}_run" "iOS [$label] app install and launch" "dependency_failed"
       run_skip_step "${key_prefix}_smoke" "iOS [$label] launch smoke" "dependency_failed"
       STEP_LOG_DIR=""
       continue
     fi
 
     if [[ "$(get_step_status "${key_prefix}_env_ready")" == "PASS" ]]; then
-      run_command_step "${key_prefix}_build" "iOS [$label] simulator build" "IOS_SIMULATOR_NAME=\"$IOS_SIMULATOR_NAME_EFFECTIVE\" IOS_SIMULATOR_UDID=\"$IOS_SIMULATOR_UDID\" make ios-build"
-      run_command_step "${key_prefix}_run" "iOS [$label] simulator run" "IOS_SIMULATOR_NAME=\"$IOS_SIMULATOR_NAME_EFFECTIVE\" IOS_SIMULATOR_UDID=\"$IOS_SIMULATOR_UDID\" IOS_SKIP_BUILD=1 make ios-run"
+      run_command_step "${key_prefix}_test" "iOS [$label] XCTest suite" "IOS_SIMULATOR_NAME=\"$IOS_SIMULATOR_NAME_EFFECTIVE\" IOS_SIMULATOR_UDID=\"$IOS_SIMULATOR_UDID\" make ios-test"
     else
-      run_skip_step "${key_prefix}_build" "iOS [$label] simulator build" "dependency_failed"
-      run_skip_step "${key_prefix}_run" "iOS [$label] simulator run" "dependency_failed"
+      run_skip_step "${key_prefix}_test" "iOS [$label] XCTest suite" "dependency_failed"
+      run_skip_step "${key_prefix}_run" "iOS [$label] app install and launch" "dependency_failed"
+    fi
+
+    if [[ "$(get_step_status "${key_prefix}_test")" == "PASS" ]]; then
+      run_command_step "${key_prefix}_run" "iOS [$label] app install and launch" "IOS_SIMULATOR_NAME=\"$IOS_SIMULATOR_NAME_EFFECTIVE\" IOS_SIMULATOR_UDID=\"$IOS_SIMULATOR_UDID\" IOS_SKIP_BUILD=1 make ios-run"
+    else
+      run_skip_step "${key_prefix}_run" "iOS [$label] app install and launch" "dependency_failed"
     fi
 
     run_status="$(get_step_status "${key_prefix}_run")"
@@ -2138,9 +2143,11 @@ if [[ "$(get_step_status "profile_load")" == "PASS" && "$(get_step_status "profi
   STEP_LOG_DIR=""
   case "$VERIFY_RC_SCOPE" in
     full)
+      run_command_step "shared_static_analysis" "Shared Kotlin static analysis" "make shared-static-analysis"
       run_command_step "shared_test" "Shared module tests" "make shared-test"
       run_command_step "android_lint_unit" "Android lint and unit tests" "./gradlew :androidApp:lint :androidApp:testDebugUnitTest"
       run_command_step "android_debug_build" "Android debug build" "make android-debug"
+      run_command_step "ios_lint" "iOS Swift lint" "make ios-lint"
       run_android_device_matrix
       run_ios_device_matrix
       STEP_LOG_DIR=""
@@ -2148,6 +2155,7 @@ if [[ "$(get_step_status "profile_load")" == "PASS" && "$(get_step_status "profi
       run_manual_signoff_step
       ;;
     shared)
+      run_command_step "shared_static_analysis" "Shared Kotlin static analysis" "make shared-static-analysis"
       run_command_step "shared_test" "Shared module tests" "make shared-test"
       ;;
     android)
@@ -2156,6 +2164,7 @@ if [[ "$(get_step_status "profile_load")" == "PASS" && "$(get_step_status "profi
       run_android_device_matrix
       ;;
     ios)
+      run_command_step "ios_lint" "iOS Swift lint" "make ios-lint"
       run_ios_device_matrix
       ;;
     gate)

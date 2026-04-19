@@ -109,7 +109,7 @@ class SecureTokenStoreImpl(
                     deleteKeychainValueSilently()
                     null
                 }
-                else -> throw IllegalStateException("Unable to read auth state from iOS Keychain (status=$status).")
+                else -> error("Unable to read auth state from iOS Keychain (status=$status).")
             }
         }
     }
@@ -138,7 +138,7 @@ class SecureTokenStoreImpl(
         when (updateStatus) {
             errSecSuccess -> return
             errSecItemNotFound -> addKeychainValue(data)
-            else -> throw IllegalStateException("Unable to update auth state in iOS Keychain (status=$updateStatus).")
+            else -> error("Unable to update auth state in iOS Keychain (status=$updateStatus).")
         }
     }
 
@@ -151,7 +151,7 @@ class SecureTokenStoreImpl(
             SecItemDelete(identityQuery)
         }
         if (status != errSecSuccess && status != errSecItemNotFound) {
-            throw IllegalStateException("Unable to clear auth state from iOS Keychain (status=$status).")
+            error("Unable to clear auth state from iOS Keychain (status=$status).")
         }
     }
 
@@ -170,7 +170,7 @@ class SecureTokenStoreImpl(
             SecItemAdd(addQuery, null)
         }
         if (addStatus != errSecSuccess) {
-            throw IllegalStateException("Unable to write auth state to iOS Keychain (status=$addStatus).")
+            error("Unable to write auth state to iOS Keychain (status=$addStatus).")
         }
     }
 
@@ -212,7 +212,7 @@ private inline fun <T> withKeychainDictionary(
     block: (CFDictionaryRef) -> T
 ): T {
     val retainedDictionary = CFBridgingRetain(keychainDictionary(*entries))
-        ?: throw IllegalStateException("Unable to bridge iOS dictionary for Keychain access.")
+        ?: error("Unable to bridge iOS dictionary for Keychain access.")
     return try {
         block(retainedDictionary.reinterpret())
     } finally {

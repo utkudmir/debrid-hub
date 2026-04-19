@@ -1,6 +1,7 @@
 package app.debridhub.shared.data.repository
 
 import app.debridhub.shared.data.remote.ApiErrorDto
+import app.debridhub.shared.data.remote.DeviceCredentialsResponse
 import app.debridhub.shared.data.remote.RealDebridService
 import app.debridhub.shared.domain.model.AuthPollResult
 import app.debridhub.shared.domain.model.DeviceAuthSession
@@ -62,57 +63,18 @@ class AuthRepositoryImpl(
             return AuthPollResult.Expired
         }
 
-        return try {
+        return runCatching {
             val credentials = api.getDeviceCredentials(clientId, deviceCode)
-            val realClientId = credentials.clientId
-            val realClientSecret = credentials.clientSecret
-            if (realClientId == null || realClientSecret == null) {
-                when (credentials.error) {
-                    "authorization_pending", null -> AuthPollResult.Pending
-                    "access_denied" -> {
-                        clearPendingSession()
-                        AuthPollResult.Denied
-                    }
-                    "expired_token" -> {
-                        clearPendingSession()
-                        AuthPollResult.Expired
-                    }
-                    else -> AuthPollResult.Failure(credentials.error, "Authorization failed.")
+            authorizeWithCredentials(credentials, deviceCode)
+        }.getOrElse { error ->
+            when (error) {
+                is ResponseException -> {
+                    val apiError = parseApiError(error)
+                    mapAuthorizationError(apiError?.error)
                 }
-            } else {
-                val tokenResponse = api.exchangeToken(realClientId, realClientSecret, deviceCode)
-                val authState = StoredAuthState(
-                    accessToken = tokenResponse.accessToken,
-                    refreshToken = tokenResponse.refreshToken,
-                    clientId = realClientId,
-                    clientSecret = realClientSecret,
-                    accessTokenExpiresAt = nowProvider().plus(tokenResponse.expiresIn, DateTimeUnit.SECOND)
-                )
-                tokenStore.write(authState)
-                clearPendingSession()
-                AuthPollResult.Authorized(authState)
+
+                else -> AuthPollResult.Failure(null, error.message ?: "Authorization failed.")
             }
-        } catch (error: ResponseException) {
-            val apiError = parseApiError(error)
-            when (val code = apiError?.error) {
-                "authorization_pending", null -> AuthPollResult.Pending
-                "access_denied" -> {
-                    clearPendingSession()
-                    AuthPollResult.Denied
-                }
-                "expired_token" -> {
-                    clearPendingSession()
-                    AuthPollResult.Expired
-                }
-                else -> {
-                    AuthPollResult.Failure(
-                        code = code,
-                        message = code
-                    )
-                }
-            }
-        } catch (error: Throwable) {
-            AuthPollResult.Failure(null, error.message ?: "Authorization failed.")
         }
     }
 
@@ -134,8 +96,49 @@ class AuthRepositoryImpl(
         tokenStore.clear()
     }
 
+    private suspend fun authorizeWithCredentials(
+        credentials: DeviceCredentialsResponse,
+        deviceCode: String
+    ): AuthPollResult {
+        val realClientId = credentials.clientId
+        val realClientSecret = credentials.clientSecret
+
+        return if (realClientId == null || realClientSecret == null) {
+            mapAuthorizationError(credentials.error)
+        } else {
+            val tokenResponse = api.exchangeToken(realClientId, realClientSecret, deviceCode)
+            val authState = StoredAuthState(
+                accessToken = tokenResponse.accessToken,
+                refreshToken = tokenResponse.refreshToken,
+                clientId = realClientId,
+                clientSecret = realClientSecret,
+                accessTokenExpiresAt = nowProvider().plus(tokenResponse.expiresIn, DateTimeUnit.SECOND)
+            )
+            tokenStore.write(authState)
+            clearPendingSession()
+            AuthPollResult.Authorized(authState)
+        }
+    }
+
+    private fun mapAuthorizationError(code: String?): AuthPollResult {
+        return when (code) {
+            "authorization_pending", null -> AuthPollResult.Pending
+            "access_denied" -> {
+                clearPendingSession()
+                AuthPollResult.Denied
+            }
+
+            "expired_token" -> {
+                clearPendingSession()
+                AuthPollResult.Expired
+            }
+
+            else -> AuthPollResult.Failure(code, code)
+        }
+    }
+
     private suspend fun refresh(state: StoredAuthState): String? {
-        return try {
+        return runCatching {
             val refreshed = api.refreshToken(
                 clientId = state.clientId,
                 clientSecret = state.clientSecret,
@@ -148,7 +151,7 @@ class AuthRepositoryImpl(
             )
             tokenStore.write(newState)
             newState.accessToken
-        } catch (_: Throwable) {
+        }.getOrElse {
             tokenStore.clear()
             null
         }

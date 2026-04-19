@@ -94,17 +94,11 @@ class RealDebridApi(
         var lastError: Throwable? = null
 
         for ((index, apiHost) in candidateHosts().withIndex()) {
-            try {
-                log("Attempting $operation via $apiHost")
-                val result = request(apiHost)
-                if (preferredApiHost != apiHost) {
-                    log("Switching preferred Real-Debrid host to $apiHost")
+            log("Attempting $operation via $apiHost")
+            val result = runCatching { request(apiHost) }.getOrElse { error ->
+                if (error is CancellationException) {
+                    throw error
                 }
-                preferredApiHost = apiHost
-                return result
-            } catch (error: Throwable) {
-                if (error is CancellationException) throw error
-
                 lastError = error
                 val willRetry = index < API_HOSTS.lastIndex && shouldRetryWithAlternateHost(error)
                 log(
@@ -121,10 +115,18 @@ class RealDebridApi(
                 if (!willRetry) {
                     throw error
                 }
+                continue
             }
+
+            if (preferredApiHost != apiHost) {
+                log("Switching preferred Real-Debrid host to $apiHost")
+            }
+            preferredApiHost = apiHost
+            return result
         }
 
-        throw lastError ?: IllegalStateException("Real-Debrid request failed before any host was attempted.")
+        val terminalError = lastError ?: error("Real-Debrid request failed before any host was attempted.")
+        throw terminalError
     }
 
     private fun candidateHosts(): List<String> =

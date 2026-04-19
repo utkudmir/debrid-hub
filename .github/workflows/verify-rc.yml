@@ -1,4 +1,4 @@
-name: verify-rc
+name: verification
 
 on:
   pull_request:
@@ -11,6 +11,8 @@ on:
       - main
     paths:
       - .github/workflows/verify-rc.yml
+      - .detekt.yml
+      - .swiftlint.yml
       - Makefile
       - build.gradle.kts
       - settings.gradle.kts
@@ -28,6 +30,8 @@ on:
       - main
     paths:
       - .github/workflows/verify-rc.yml
+      - .detekt.yml
+      - .swiftlint.yml
       - Makefile
       - build.gradle.kts
       - settings.gradle.kts
@@ -55,7 +59,7 @@ on:
           - rc-full
 
 concurrency:
-  group: verify-rc-${{ github.workflow }}-${{ github.ref }}
+  group: verification-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 permissions:
@@ -65,24 +69,25 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
-  schedule-gate:
+  plan-verification:
+    name: Plan verification
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-24.04
     outputs:
-      enabled: ${{ steps.schedule_gate.outputs.enabled }}
-      verify_profile: ${{ steps.schedule_gate.outputs.verify_profile }}
-      android_matrix: ${{ steps.schedule_gate.outputs.android_matrix }}
-      ios_matrix: ${{ steps.schedule_gate.outputs.ios_matrix }}
+      enabled: ${{ steps.plan.outputs.enabled }}
+      verify_profile: ${{ steps.plan.outputs.verify_profile }}
+      android_matrix: ${{ steps.plan.outputs.android_matrix }}
+      ios_matrix: ${{ steps.plan.outputs.ios_matrix }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Schedule gate precheck
-        id: schedule_gate
+      - name: Resolve profile and device matrix
+        id: plan
         shell: bash
         run: |
           set -euo pipefail
-          echo "== verify-rc precheck =="
+          echo "== verification precheck =="
           echo "event: ${{ github.event_name }}"
           echo "ref: ${{ github.ref }}"
           echo "sha: ${{ github.sha }}"
@@ -95,12 +100,11 @@ jobs:
             effective_profile="${{ github.event.inputs.verify_profile }}"
           fi
 
-          echo "requested profile: $effective_profile"
           echo "verify_profile=$effective_profile" >> "$GITHUB_OUTPUT"
 
           if [[ "${{ github.event_name }}" == "schedule" && "${{ vars.ENABLE_RC_FULL_SCHEDULE }}" != "true" ]]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping scheduled verify run: ENABLE_RC_FULL_SCHEDULE is not 'true'."
+            echo "Skipping scheduled verification run: ENABLE_RC_FULL_SCHEDULE is not 'true'."
           else
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
@@ -114,32 +118,15 @@ jobs:
           echo "android_matrix=$android_matrix" >> "$GITHUB_OUTPUT"
           echo "ios_matrix=$ios_matrix" >> "$GITHUB_OUTPUT"
 
-  verify-shared:
-    needs: schedule-gate
-    if: needs['schedule-gate'].outputs.enabled == 'true'
+  shared-quality:
+    name: Shared static analysis and tests
+    needs: plan-verification
+    if: needs['plan-verification'].outputs.enabled == 'true'
     runs-on: macos-15
     timeout-minutes: 90
-    env:
-      VERIFY_PROFILE: ${{ needs['schedule-gate'].outputs.verify_profile }}
-      STEP_COMMAND_TIMEOUT_SECONDS: "1800"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Workflow context
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "== verify-shared workflow context =="
-          echo "runner: $RUNNER_NAME"
-          echo "runner os: $RUNNER_OS"
-          echo "runner arch: $RUNNER_ARCH"
-          echo "workspace: $GITHUB_WORKSPACE"
-          echo "profile: $VERIFY_PROFILE"
-          echo "repository: $GITHUB_REPOSITORY"
-          echo "run id: $GITHUB_RUN_ID"
-          echo "run attempt: $GITHUB_RUN_ATTEMPT"
-          echo "actor: $GITHUB_ACTOR"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -148,50 +135,34 @@ jobs:
           java-version: "21"
           cache: gradle
 
-      - name: Verify Shared
+      - name: Run shared static analysis and tests
         shell: bash
-        env:
-          VERIFY_RC_SCOPE: shared
         run: |
           set -euo pipefail
-          echo "== verify shared scope =="
-          echo "profile: $VERIFY_PROFILE"
-          make verify-rc
+          make shared-static-analysis
+          make shared-test
 
-      - name: Upload RC artifacts (shared)
-        if: always()
+      - name: Upload shared diagnostics
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: rc-verify-shared-artifacts
-          path: build/rc-verify/
+          name: verification-diagnostics-shared
+          path: |
+            shared/build/reports/
+            shared/build/test-results/
+            build/rc-verify/
           retention-days: 7
           if-no-files-found: ignore
 
-  verify-android-build:
-    needs: schedule-gate
-    if: needs['schedule-gate'].outputs.enabled == 'true'
+  android-static-analysis:
+    name: Android static analysis
+    needs: plan-verification
+    if: needs['plan-verification'].outputs.enabled == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
-    env:
-      VERIFY_PROFILE: ${{ needs['schedule-gate'].outputs.verify_profile }}
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Workflow context
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "== verify-android-build workflow context =="
-          echo "runner: $RUNNER_NAME"
-          echo "runner os: $RUNNER_OS"
-          echo "runner arch: $RUNNER_ARCH"
-          echo "workspace: $GITHUB_WORKSPACE"
-          echo "profile: $VERIFY_PROFILE"
-          echo "repository: $GITHUB_REPOSITORY"
-          echo "run id: $GITHUB_RUN_ID"
-          echo "run attempt: $GITHUB_RUN_ATTEMPT"
-          echo "actor: $GITHUB_ACTOR"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -200,66 +171,46 @@ jobs:
           java-version: "21"
           cache: gradle
 
-      - name: Verify Android build and unit scope
+      - name: Run Android lint
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :androidApp:lint :androidApp:testDebugUnitTest :androidApp:assembleDebug
+          ./gradlew :androidApp:lint
 
-      - name: Upload Android debug APK
-        if: always()
+      - name: Upload Android static analysis diagnostics
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: android-debug-apk
-          path: androidApp/build/outputs/apk/debug/androidApp-debug.apk
-          retention-days: 7
-          if-no-files-found: error
-
-      - name: Upload Android build reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-build-reports
+          name: verification-diagnostics-android-static-analysis
           path: |
             androidApp/build/reports/
             build/reports/
           retention-days: 7
           if-no-files-found: ignore
 
-  verify-android-device:
+  android-automated-tests:
+    name: Android automated tests (${{ matrix.label }})
     needs:
-      - schedule-gate
-      - verify-android-build
-    if: needs['schedule-gate'].outputs.enabled == 'true'
+      - plan-verification
+      - android-static-analysis
+    if: needs['plan-verification'].outputs.enabled == 'true'
     runs-on: ${{ vars.ANDROID_EMULATOR_RUNNER != '' && vars.ANDROID_EMULATOR_RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 90
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs['schedule-gate'].outputs.android_matrix) }}
+      matrix: ${{ fromJSON(needs['plan-verification'].outputs.android_matrix) }}
     env:
-      VERIFY_PROFILE: ${{ needs['schedule-gate'].outputs.verify_profile }}
-      ANDROID_APK_PATH: ${{ github.workspace }}/build/android-artifacts/androidApp-debug.apk
-      ANDROID_PACKAGE: app.debridhub
-      ANDROID_VERIFY_LOG_DIR: ${{ github.workspace }}/build/rc-verify/android/${{ matrix.slug }}
+      ANDROID_BUILD_CACHE_KEY: android-debug-apk-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.slug }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Workflow context
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "== verify-android-device workflow context =="
-          echo "runner: $RUNNER_NAME"
-          echo "runner os: $RUNNER_OS"
-          echo "runner arch: $RUNNER_ARCH"
-          echo "workspace: $GITHUB_WORKSPACE"
-          echo "profile: $VERIFY_PROFILE"
-          echo "device label: ${{ matrix.label }}"
-          echo "api level: ${{ matrix.api_level }}"
-          echo "target: ${{ matrix.target }}"
-          echo "arch: ${{ matrix.arch }}"
-          echo "avd name: ${{ matrix.avd_name }}"
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
 
       - name: Enable KVM group perms
         if: runner.os == 'Linux'
@@ -273,12 +224,6 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-
-      - name: Download Android debug APK
-        uses: actions/download-artifact@v4
-        with:
-          name: android-debug-apk
-          path: build/android-artifacts
 
       - name: Cache Android AVD snapshot
         id: avd-cache
@@ -304,7 +249,7 @@ jobs:
           disable-animations: false
           script: echo "Generated cached AVD snapshot for ${{ matrix.label }}"
 
-      - name: Verify Android emulator smoke
+      - name: Run Android unit and instrumented tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api_level }}
@@ -316,49 +261,46 @@ jobs:
           disable-linux-hw-accel: auto
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: ./scripts/verify-android-emulator.sh "$ANDROID_APK_PATH" "$ANDROID_PACKAGE"
+          script: ./gradlew :androidApp:testDebugUnitTest :androidApp:assembleDebug :androidApp:connectedDebugAndroidTest
 
-      - name: Upload RC artifacts (android-${{ matrix.slug }})
-        if: always()
+      - name: Save Android launch smoke build cache
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: androidApp/build/outputs/apk/debug/
+          key: ${{ env.ANDROID_BUILD_CACHE_KEY }}
+
+      - name: Upload Android automated test diagnostics
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: rc-verify-android-${{ matrix.slug }}
-          path: build/rc-verify/android/${{ matrix.slug }}/
+          name: verification-diagnostics-android-tests-${{ matrix.slug }}
+          path: |
+            androidApp/build/reports/
+            androidApp/build/test-results/
+            androidApp/build/reports/androidTests/connected/
+            androidApp/build/outputs/androidTest-results/connected/
           retention-days: 7
           if-no-files-found: ignore
 
-  verify-ios:
-    needs: schedule-gate
-    if: needs['schedule-gate'].outputs.enabled == 'true'
-    runs-on: macos-15
-    timeout-minutes: 120
+  android-launch-smoke:
+    name: Android launch smoke (${{ matrix.label }})
+    needs:
+      - plan-verification
+      - android-automated-tests
+    if: needs['plan-verification'].outputs.enabled == 'true'
+    runs-on: ${{ vars.ANDROID_EMULATOR_RUNNER != '' && vars.ANDROID_EMULATOR_RUNNER || 'ubuntu-24.04' }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs['schedule-gate'].outputs.ios_matrix) }}
+      matrix: ${{ fromJSON(needs['plan-verification'].outputs.android_matrix) }}
     env:
-      VERIFY_PROFILE: ${{ needs['schedule-gate'].outputs.verify_profile }}
-      STEP_COMMAND_TIMEOUT_SECONDS: "1800"
-      VERIFY_RC_IOS_LABELS: ${{ matrix.label }}
+      ANDROID_BUILD_CACHE_KEY: android-debug-apk-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.slug }}
+      ANDROID_VERIFY_LOG_DIR: ${{ github.workspace }}/build/rc-verify/android/${{ matrix.slug }}
+      ANDROID_PACKAGE: app.debridhub
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Workflow context
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "== verify-ios workflow context =="
-          echo "runner: $RUNNER_NAME"
-          echo "runner os: $RUNNER_OS"
-          echo "runner arch: $RUNNER_ARCH"
-          echo "workspace: $GITHUB_WORKSPACE"
-          echo "profile: $VERIFY_PROFILE"
-          echo "ios label: ${{ matrix.label }}"
-          echo "device class: ${{ matrix.device_class }}"
-          echo "repository: $GITHUB_REPOSITORY"
-          echo "run id: $GITHUB_RUN_ID"
-          echo "run attempt: $GITHUB_RUN_ATTEMPT"
-          echo "actor: $GITHUB_ACTOR"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -367,107 +309,244 @@ jobs:
           java-version: "21"
           cache: gradle
 
-      - name: Verify iOS
+      - name: Enable KVM group perms
+        if: runner.os == 'Linux'
         shell: bash
-        env:
-          VERIFY_RC_SCOPE: ios
         run: |
           set -euo pipefail
-          echo "== verify ios scope =="
-          echo "profile: $VERIFY_PROFILE"
-          echo "label filter: $VERIFY_RC_IOS_LABELS"
-          make verify-rc
+          if [[ ! -e /dev/kvm ]]; then
+            echo "/dev/kvm is not available on this runner; Android Emulator will fall back to software virtualization."
+            exit 0
+          fi
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
 
-      - name: Upload RC artifacts (ios-${{ matrix.slug }})
-        if: always()
+      - name: Restore Android build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: androidApp/build/outputs/apk/debug/
+          key: ${{ env.ANDROID_BUILD_CACHE_KEY }}
+          fail-on-cache-miss: true
+
+      - name: Cache Android AVD snapshot
+        id: avd-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ runner.os }}-${{ matrix.api_level }}-${{ matrix.target }}-${{ matrix.arch }}-${{ matrix.avd_name }}-v1
+
+      - name: Run Android launch smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api_level }}
+          target: ${{ matrix.target }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.device_profile }}
+          avd-name: ${{ matrix.avd_name }}
+          force-avd-creation: false
+          disable-linux-hw-accel: auto
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: ./scripts/verify-android-emulator.sh "androidApp/build/outputs/apk/debug/androidApp-debug.apk" "$ANDROID_PACKAGE"
+
+      - name: Upload Android launch smoke diagnostics
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: rc-verify-ios-${{ matrix.slug }}
-          path: build/rc-verify/
+          name: verification-diagnostics-android-smoke-${{ matrix.slug }}
+          path: build/rc-verify/android/${{ matrix.slug }}/
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Upload CI logs (ios-${{ matrix.slug }})
-        if: always()
+  ios-static-analysis:
+    name: iOS static analysis
+    needs: plan-verification
+    if: needs['plan-verification'].outputs.enabled == 'true'
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install SwiftLint
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install swiftlint
+
+      - name: Run iOS SwiftLint
+        shell: bash
+        run: |
+          set -euo pipefail
+          make ios-lint
+
+      - name: Upload iOS static analysis diagnostics
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: ci-logs-ios-${{ matrix.slug }}
-          path: build/ci-logs/
+          name: verification-diagnostics-ios-static-analysis
+          path: .swiftlint.yml
           retention-days: 7
           if-no-files-found: ignore
 
-  verify-gate:
+  ios-automated-tests:
+    name: iOS automated tests (${{ matrix.label }})
     needs:
-      - schedule-gate
-      - verify-shared
-      - verify-android-build
-      - verify-android-device
-      - verify-ios
-    if: always() && needs['schedule-gate'].outputs.enabled == 'true'
+      - plan-verification
+      - ios-static-analysis
+    if: needs['plan-verification'].outputs.enabled == 'true'
+    runs-on: macos-15
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs['plan-verification'].outputs.ios_matrix) }}
+    env:
+      IOS_BUILD_CACHE_KEY: ios-derived-data-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.slug }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Run iOS XCTest suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          IOS_SIMULATOR_NAME="${{ matrix.simulator_name }}" IOS_DEVICE_CLASS="${{ matrix.device_class }}" make ios-test
+
+      - name: Save iOS build cache for launch smoke
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: build/ios-derived-data/Build/Products/Debug-iphonesimulator/
+          key: ${{ env.IOS_BUILD_CACHE_KEY }}
+
+      - name: Upload iOS automated test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-diagnostics-ios-tests-${{ matrix.slug }}
+          path: |
+            build/ios-derived-data/Logs/
+            build/ci-logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  ios-launch-smoke:
+    name: iOS launch smoke (${{ matrix.label }})
+    needs:
+      - plan-verification
+      - ios-automated-tests
+    if: needs['plan-verification'].outputs.enabled == 'true'
+    runs-on: macos-15
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs['plan-verification'].outputs.ios_matrix) }}
+    env:
+      IOS_BUILD_CACHE_KEY: ios-derived-data-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.slug }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Restore iOS build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: build/ios-derived-data/Build/Products/Debug-iphonesimulator/
+          key: ${{ env.IOS_BUILD_CACHE_KEY }}
+          fail-on-cache-miss: true
+
+      - name: Run iOS launch smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          IOS_SIMULATOR_NAME="${{ matrix.simulator_name }}" IOS_DEVICE_CLASS="${{ matrix.device_class }}" IOS_SKIP_BUILD=1 make ios-run
+
+      - name: Upload iOS launch smoke diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-diagnostics-ios-smoke-${{ matrix.slug }}
+          path: |
+            build/ios-derived-data/Logs/
+            build/ci-logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  final-verification-gate:
+    name: Final verification gate
+    needs:
+      - plan-verification
+      - shared-quality
+      - android-static-analysis
+      - android-automated-tests
+      - android-launch-smoke
+      - ios-static-analysis
+      - ios-automated-tests
+      - ios-launch-smoke
+    if: always() && needs['plan-verification'].outputs.enabled == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      VERIFY_PROFILE: ${{ needs['schedule-gate'].outputs.verify_profile }}
+      VERIFY_PROFILE: ${{ needs['plan-verification'].outputs.verify_profile }}
       STEP_COMMAND_TIMEOUT_SECONDS: "1800"
     steps:
-      - name: Validate required platform jobs
+      - name: Validate required verification jobs
         shell: bash
         run: |
           set -euo pipefail
-          echo "verify-shared result: ${{ needs['verify-shared'].result }}"
-          echo "verify-android-build result: ${{ needs['verify-android-build'].result }}"
-          echo "verify-android-device result: ${{ needs['verify-android-device'].result }}"
-          echo "verify-ios result: ${{ needs['verify-ios'].result }}"
-          if [[ "${{ needs['verify-shared'].result }}" != "success" ]]; then
-            echo "verify-shared did not succeed" >&2
-            exit 1
-          fi
-          if [[ "${{ needs['verify-android-build'].result }}" != "success" ]]; then
-            echo "verify-android-build did not succeed" >&2
-            exit 1
-          fi
-          if [[ "${{ needs['verify-android-device'].result }}" != "success" ]]; then
-            echo "verify-android-device did not succeed" >&2
-            exit 1
-          fi
-          if [[ "${{ needs['verify-ios'].result }}" != "success" ]]; then
-            echo "verify-ios did not succeed" >&2
-            exit 1
-          fi
+          echo "shared-quality result: ${{ needs['shared-quality'].result }}"
+          echo "android-static-analysis result: ${{ needs['android-static-analysis'].result }}"
+          echo "android-automated-tests result: ${{ needs['android-automated-tests'].result }}"
+          echo "android-launch-smoke result: ${{ needs['android-launch-smoke'].result }}"
+          echo "ios-static-analysis result: ${{ needs['ios-static-analysis'].result }}"
+          echo "ios-automated-tests result: ${{ needs['ios-automated-tests'].result }}"
+          echo "ios-launch-smoke result: ${{ needs['ios-launch-smoke'].result }}"
+          for result in \
+            "${{ needs['shared-quality'].result }}" \
+            "${{ needs['android-static-analysis'].result }}" \
+            "${{ needs['android-automated-tests'].result }}" \
+            "${{ needs['android-launch-smoke'].result }}" \
+            "${{ needs['ios-static-analysis'].result }}" \
+            "${{ needs['ios-automated-tests'].result }}" \
+            "${{ needs['ios-launch-smoke'].result }}"; do
+            if [[ "$result" != "success" ]]; then
+              echo "At least one verification lane did not succeed" >&2
+              exit 1
+            fi
+          done
 
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Workflow context
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "== verify-gate workflow context =="
-          echo "runner: $RUNNER_NAME"
-          echo "runner os: $RUNNER_OS"
-          echo "runner arch: $RUNNER_ARCH"
-          echo "workspace: $GITHUB_WORKSPACE"
-          echo "profile: $VERIFY_PROFILE"
-          echo "repository: $GITHUB_REPOSITORY"
-          echo "run id: $GITHUB_RUN_ID"
-          echo "run attempt: $GITHUB_RUN_ATTEMPT"
-          echo "actor: $GITHUB_ACTOR"
-
-      - name: Verify Gate
+      - name: Run compliance and sign-off gate
         shell: bash
         env:
           VERIFY_RC_SCOPE: gate
         run: |
           set -euo pipefail
-          echo "== verify gate scope =="
-          echo "profile: $VERIFY_PROFILE"
           make verify-rc
 
-      - name: Upload RC artifacts (gate)
-        if: always()
+      - name: Upload gate diagnostics
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: rc-verify-gate-artifacts
+          name: verification-diagnostics-gate
           path: build/rc-verify/
           retention-days: 7
           if-no-files-found: ignore

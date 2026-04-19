@@ -1,0 +1,48 @@
+included:
+  - iosApp/DebridHubHost
+  - iosApp/DebridHubHostTests
+
+excluded:
+  - iosApp/DebridHubHost.xcodeproj
+  - build
+
+reporter: github-actions-logging
+
+strict: true
+
+opt_in_rules:
+  - array_init
+  - closure_end_indentation
+  - closure_spacing
+  - collection_alignment
+  - contains_over_first_not_nil
+  - empty_count
+  - empty_string
+  - explicit_init
+  - fatal_error_message
+  - first_where
+  - identical_operands
+  - implicit_return
+  - last_where
+  - modifier_order
+  - multiline_arguments
+  - multiline_parameters
+  - operator_usage_whitespace
+  - overridden_super_call
+  - prohibited_super_call
+  - redundant_nil_coalescing
+  - sorted_imports
+  - toggle_bool
+  - unneeded_parentheses_in_closure_argument
+  - unused_optional_binding
+  - vertical_parameter_alignment_on_call
+  - vertical_whitespace_closing_braces
+  - yoda_condition
+
+disabled_rules:
+  - todo
+  - trailing_whitespace
+
+analyzer_rules:
+  - unused_import
+  - unused_declaration

@@ -1,9 +1,34 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import io.gitlab.arturbosch.detekt.Detekt
 
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization")
     id("com.android.kotlin.multiplatform.library")
+    id("io.gitlab.arturbosch.detekt")
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    allRules = true
+    parallel = true
+    basePath = rootDir.absolutePath
+    config.setFrom(rootProject.file(".detekt.yml"))
+    source.setFrom(
+        files(
+            "src/commonMain/kotlin",
+            "src/commonTest/kotlin",
+            "src/androidMain/kotlin",
+            "src/iosMain/kotlin",
+            "src/iosArm64Main/kotlin",
+            "src/iosSimulatorArm64Main/kotlin",
+            "src/iosX64Main/kotlin"
+        )
+    )
+}
+
+tasks.withType<Detekt>().configureEach {
+    jvmTarget = "21"
 }
 
 kotlin {

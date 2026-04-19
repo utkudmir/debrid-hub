@@ -5,6 +5,7 @@ plugins {
     id("com.android.application") apply false
     id("com.android.library") apply false
     id("com.android.kotlin.multiplatform.library") apply false
+    id("io.gitlab.arturbosch.detekt") version "1.23.8" apply false
 }
 
 tasks.register<Delete>("clean") {

@@ -21,7 +21,7 @@ class RealDebridApiTest {
         val client = HttpClient(MockEngine { request ->
             requestedHosts += request.url.host
             when (request.url.host) {
-                "api.real-debrid.com" -> throw IllegalStateException("TLS handshake failed")
+                "api.real-debrid.com" -> error("TLS handshake failed")
                 else -> respond(
                     content = """
                         {"id":1,"username":"sample-user","type":"premium","premium":432000,"expiration":"2026-04-23T09:00:00Z"}
@@ -55,7 +55,7 @@ class RealDebridApiTest {
         val requestedHosts = mutableListOf<String>()
         val client = HttpClient(MockEngine { request ->
             requestedHosts += request.url.host
-            throw IllegalStateException("authorization_pending")
+            error("authorization_pending")
         })
         val api = RealDebridApi(client)
 
