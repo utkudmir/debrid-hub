@@ -2,6 +2,7 @@ package app.debridhub.shared.platform
 
 import android.app.AlarmManager
 import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -28,7 +29,10 @@ class NotificationSchedulerImpl(
         val ids = mutableSetOf<String>()
         reminders.forEach { reminder ->
             val notificationId = reminder.fireAt.epochSeconds.toInt()
-            val intent = Intent(context, ReminderAlarmReceiver::class.java)
+            val intent = Intent().apply {
+                component = ComponentName(context, ReminderAlarmReceiver::class.java)
+                setPackage(context.packageName)
+            }
                 .putExtra(ReminderAlarmReceiver.EXTRA_NOTIFICATION_ID, notificationId)
                 .putExtra(ReminderAlarmReceiver.EXTRA_MESSAGE, reminder.message)
             val pendingIntent = PendingIntent.getBroadcast(
@@ -56,7 +60,10 @@ class NotificationSchedulerImpl(
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
                 notificationId,
-                Intent(context, ReminderAlarmReceiver::class.java),
+                Intent().apply {
+                    component = ComponentName(context, ReminderAlarmReceiver::class.java)
+                    setPackage(context.packageName)
+                },
                 PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
             )
             if (pendingIntent != null) {
