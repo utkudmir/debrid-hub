@@ -103,6 +103,14 @@ VERIFY_PROFILE=ci-pr make verify-rc
 
 Device pools are defined in `ci/device-pool.yml`.
 
+Localization is managed from `localization/strings.yml`. Regenerate platform and
+shared outputs with:
+
+```bash
+make localization-generate
+make localization-check
+```
+
 Profiles are phone-only and resolved dynamically at runtime. If an expected
 phone simulator/AVD does not exist, provisioning and verify scripts create it
 from the profile recipe when possible.
@@ -148,8 +156,9 @@ CI quick notes:
 
 - Scheduled `rc-full` runs are guarded by repository variable `ENABLE_RC_FULL_SCHEDULE`; set it to `true` to enable weekday schedule execution.
 - Manual GitHub Actions runs (`workflow_dispatch`) expose `verify_profile` choices: `ci-pr`, `ci-nightly`, `rc-full`.
-- `verify-rc` workflow runs in phased jobs: `verify-shared`, `verify-android`, `verify-ios`, then `verify-gate`; the final gate requires both Android and iOS phases to succeed.
-- Non-mac orchestration phases (`schedule-gate`, `verify-gate`) run on Ubuntu runners to reduce macOS minute consumption.
+- `verification` workflow runs in phased jobs: plan, shared quality, Android static analysis/tests/smoke, iOS static analysis/tests/smoke, then the final gate.
+- Localization parity is validated in CI with `make localization-check`.
+- Non-mac orchestration phases (`plan-verification`, `final-verification-gate`) run on Ubuntu runners to reduce macOS minute consumption.
 
 ## Security and Privacy
 

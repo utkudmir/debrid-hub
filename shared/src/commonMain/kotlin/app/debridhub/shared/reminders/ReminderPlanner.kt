@@ -3,6 +3,7 @@ package app.debridhub.shared.reminders
 import app.debridhub.shared.domain.model.AccountStatus
 import app.debridhub.shared.domain.model.ReminderConfig
 import app.debridhub.shared.domain.model.ScheduledReminder
+import app.debridhub.shared.localization.AppLocalization
 import kotlinx.datetime.Instant
 
 class ReminderPlanner {
@@ -23,7 +24,11 @@ class ReminderPlanner {
                     add(
                         ScheduledReminder(
                             fireAt = fireAt,
-                            message = "Your Real-Debrid subscription expires in ${daysBefore.dayLabel()}"
+                            message = AppLocalization.plural(
+                                key = "reminders.notification.expires_in",
+                                count = daysBefore,
+                                daysBefore.toString()
+                            )
                         )
                     )
                 }
@@ -32,7 +37,7 @@ class ReminderPlanner {
                 add(
                     ScheduledReminder(
                         fireAt = expiry,
-                        message = "Your Real‑Debrid subscription expires today"
+                        message = AppLocalization.text("reminders.notification.expires_today")
                     )
                 )
             }
@@ -44,7 +49,7 @@ class ReminderPlanner {
                     add(
                         ScheduledReminder(
                             fireAt = afterExpiry,
-                            message = "Your Real-Debrid subscription expired yesterday"
+                            message = AppLocalization.text("reminders.notification.expired_yesterday")
                         )
                     )
                 }
@@ -58,5 +63,3 @@ class ReminderPlanner {
         const val MILLIS_PER_DAY = 24L * 60L * 60L * 1000L
     }
 }
-
-private fun Int.dayLabel(): String = if (this == 1) "1 day" else "$this days"

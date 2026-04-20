@@ -24,3 +24,12 @@
 ## Docs
 
 - [ ] README/docs updated if behavior or policy changed
+
+## Localization
+
+- [ ] Canonical YAML localization source updated when strings changed
+- [ ] Generated Android/iOS/shared localization outputs refreshed
+- [ ] `make localization-check` passes
+- [ ] Native-speaker review status documented (or N/A)
+- [ ] Store metadata impact assessed (or N/A)
+- [ ] Screenshots included when translated UI copy materially changed

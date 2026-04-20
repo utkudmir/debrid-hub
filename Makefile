@@ -1,8 +1,10 @@
 SHELL := /bin/bash
 
-.PHONY: help shared-static-analysis shared-test android-debug android-connected-test coverage ios-project ios-open ios-lint ios-build ios-test ios-run verify-rc provision-devices clean-local
+.PHONY: help localization-generate localization-check shared-static-analysis shared-test android-debug android-connected-test coverage ios-project ios-open ios-lint ios-build ios-test ios-run verify-rc provision-devices clean-local
 
 help:
+	@echo "make localization-generate - Generate Android, iOS, and shared localization outputs"
+	@echo "make localization-check - Verify localization outputs and locale parity"
 	@echo "make shared-test  - Run shared Kotlin tests"
 	@echo "make shared-static-analysis - Run shared Kotlin static analysis"
 	@echo "make android-debug - Assemble the Android debug app"
@@ -17,6 +19,12 @@ help:
 	@echo "make verify-rc    - Run release-candidate verification gate"
 	@echo "make provision-devices - Provision simulators/AVDs from device pool"
 	@echo "make clean-local  - Remove local build artifacts and caches"
+
+localization-generate:
+	./scripts/generate-localizations.rb
+
+localization-check:
+	./scripts/generate-localizations.rb --check
 
 shared-static-analysis:
 	@if [[ -z "$$JAVA_HOME" || ! -x "$$JAVA_HOME/bin/java" ]]; then export JAVA_HOME="$$(/usr/libexec/java_home -v 21 2>/dev/null)"; fi; ./gradlew :shared:detekt

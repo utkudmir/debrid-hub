@@ -300,9 +300,9 @@ final class IOSAppViewModel: ObservableObject {
                     scheduledReminders = try await service.previewReminders()
                 }
                 if granted {
-                    infoMessage = "Notifications enabled."
+                    infoMessage = localized("messages.notifications_enabled")
                 } else {
-                    infoMessage = "Notifications remain disabled. Open system settings if you want reminder alerts."
+                    infoMessage = localized("messages.notifications_still_disabled")
                 }
             } catch {
                 await refreshNotificationPermissionState()
@@ -322,7 +322,7 @@ final class IOSAppViewModel: ObservableObject {
             clearMessages()
             do {
                 let file = try await service.exportDiagnostics()
-                infoMessage = "Diagnostics exported to \(file.location)"
+                infoMessage = localized("messages.diagnostics_exported", file.location)
             } catch {
                 showError(error)
             }
@@ -358,7 +358,7 @@ final class IOSAppViewModel: ObservableObject {
                 scheduledReminders = []
                 reminderConfig = try await service.getReminderConfigSnapshot()
                 clearAuthorizationSession()
-                infoMessage = "Disconnected from Real-Debrid."
+                infoMessage = localized("messages.disconnected")
             } catch {
                 showError(error)
             }
@@ -446,16 +446,16 @@ final class IOSAppViewModel: ObservableObject {
                     case .authorized:
                         isAuthenticated = true
                         clearAuthorizationSession()
-                        infoMessage = "Authorization completed."
+                        infoMessage = localized("messages.authorization_completed")
                         await refreshAccount()
                         return
                     case .expired:
                         clearAuthorizationSession()
-                        showErrorMessage("The device authorization session expired.")
+                        showErrorMessage(localized("messages.authorization_expired"))
                         return
                     case .denied:
                         clearAuthorizationSession()
-                        showErrorMessage("Real-Debrid denied the authorization request.")
+                        showErrorMessage(localized("messages.authorization_denied"))
                         return
                     case let .failure(message):
                         clearAuthorizationSession()
@@ -463,7 +463,7 @@ final class IOSAppViewModel: ObservableObject {
                         return
                     case .unexpected:
                         clearAuthorizationSession()
-                        showErrorMessage("Unexpected authorization state.")
+                        showErrorMessage(localized("messages.authorization_unexpected"))
                         return
                     }
                 } catch {
@@ -545,15 +545,21 @@ final class IOSAppViewModel: ObservableObject {
             message.localizedCaseInsensitiveContains("failed to connect") ||
             message.localizedCaseInsensitiveContains("network is unreachable") ||
             message.localizedCaseInsensitiveContains("timed out") {
-            return "Couldn't reach Real-Debrid. Check your internet connection or try a different network."
+            return localized("errors.network_unreachable")
         }
 
         return message
     }
 
     private var secureConnectionFailureMessage: String {
-        "Secure connection to Real-Debrid failed. Your network appears to be intercepting " +
-            "or downgrading HTTPS traffic to api.real-debrid.com. Disable captive portals, " +
-            "VPNs, secure web gateways, or TLS inspection, or try a different network."
+        localized("errors.secure_connection_failed")
+    }
+
+    private func localized(_ key: String) -> String {
+        AppL10n.text(key)
+    }
+
+    private func localized(_ key: String, _ arg0: String) -> String {
+        AppL10n.text(key, arg0)
     }
 }

@@ -46,9 +46,6 @@ import app.debridhub.shared.domain.model.ReminderConfig
 import app.debridhub.shared.domain.model.ScheduledReminder
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,18 +79,26 @@ fun DebridHubApp(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text(if (isTrustCenterOpen) "Trust Center" else "DebridHub") },
+                    title = {
+                        Text(
+                            if (isTrustCenterOpen) {
+                                localizedText("common.trust_center")
+                            } else {
+                                localizedText("common.app_name")
+                            }
+                        )
+                    },
                     navigationIcon = {
                         if (isTrustCenterOpen) {
                             TextButton(onClick = { isTrustCenterOpen = false }) {
-                                Text("Back")
+                                Text(localizedText("common.back"))
                             }
                         }
                     },
                     actions = {
                         if (!isTrustCenterOpen) {
                             TextButton(onClick = { isTrustCenterOpen = true }) {
-                                Text("Trust Center")
+                                Text(localizedText("common.trust_center"))
                             }
                         }
                     }
@@ -177,17 +182,17 @@ private fun OnboardingScreen(
         }
 
         Text(
-            "Track your Real-Debrid subscription and renew before it lapses.",
+            localizedText("onboarding.hero_title"),
             style = MaterialTheme.typography.headlineSmall
         )
-        Text("DebridHub talks directly to the official Real-Debrid API. Tokens stay on device and no backend is involved.")
+        Text(localizedText("onboarding.hero_body"))
 
-        SectionCard(title = "Before you connect") {
-            Text("1. Tap Connect Real-Debrid to request a device code.")
-            Text("2. Copy the code if you want, then approve the device on Real-Debrid.")
-            Text("3. If your browser handoff is interrupted, use Open Authorization Page below.")
-            Text("4. Return here while DebridHub polls for completion.")
-            Text("You can open Trust Center first if you want to inspect privacy, security, diagnostics, and compliance details.")
+        SectionCard(title = localizedText("onboarding.before_connect_title")) {
+            Text(localizedText("onboarding.before_connect_step_1"))
+            Text(localizedText("onboarding.before_connect_step_2"))
+            Text(localizedText("onboarding.before_connect_step_3"))
+            Text(localizedText("onboarding.before_connect_step_4"))
+            Text(localizedText("onboarding.before_connect_step_5"))
         }
 
         uiState.errorMessage?.let {
@@ -198,17 +203,23 @@ private fun OnboardingScreen(
         if (session != null) {
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Finish authorization", fontWeight = FontWeight.SemiBold)
-                    Text("Enter this code on Real-Debrid.")
+                    Text(localizedText("onboarding.finish_authorization_title"), fontWeight = FontWeight.SemiBold)
+                    Text(localizedText("onboarding.enter_code"))
                     SelectionContainer {
                         Text(session.userCode, style = MaterialTheme.typography.headlineSmall)
                     }
-                    Text("Verification URL: ${session.verificationUrl}")
+                    Text(localizedText("onboarding.verification_url", session.verificationUrl))
                     session.directVerificationUrl?.let { directUrl ->
-                        Text("Direct verification URL: $directUrl")
+                        Text(localizedText("onboarding.direct_verification_url", directUrl))
                     }
-                    Text("Polling every ${session.pollIntervalSeconds}s until ${formatInstant(session.expiresAt)}")
-                    Text("Waiting for Real-Debrid approval. After you approve the device, come back here and DebridHub will finish the login automatically.")
+                    Text(
+                        localizedText(
+                            "onboarding.polling_until",
+                            formatIntegerForLocale(session.pollIntervalSeconds.toInt()),
+                            formatInstantForLocale(session.expiresAt)
+                        )
+                    )
+                    Text(localizedText("onboarding.waiting_for_approval"))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                         OutlinedButton(
                             onClick = {
@@ -220,17 +231,17 @@ private fun OnboardingScreen(
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Copy Code")
+                            Text(localizedText("common.copy_code"))
                         }
                         OutlinedButton(
                             onClick = { onOpenAuthorizationPage(session.directVerificationUrl ?: session.verificationUrl) },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Open Authorization Page")
+                            Text(localizedText("common.open_authorization_page"))
                         }
                     }
                     OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
-                        Text("Cancel Authorization")
+                        Text(localizedText("common.cancel_authorization"))
                     }
                 }
             }
@@ -241,7 +252,7 @@ private fun OnboardingScreen(
                 onClick = onConnect,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Start Again")
+                Text(localizedText("common.start_again"))
             }
         }
 
@@ -250,12 +261,21 @@ private fun OnboardingScreen(
             enabled = !uiState.onboarding.isStarting && !uiState.onboarding.isPolling,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (uiState.onboarding.isStarting) "Starting..." else "Connect Real-Debrid")
+            Text(
+                if (uiState.onboarding.isStarting) {
+                    localizedText("common.starting")
+                } else {
+                    localizedText("common.connect_real_debrid")
+                }
+            )
         }
 
         when (uiState.notificationPermissionState) {
             NotificationPermissionUiState.Granted -> {
-                Text("Notifications are already enabled on this device.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    localizedText("onboarding.notifications_already_enabled"),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             NotificationPermissionUiState.Disabled,
             NotificationPermissionUiState.Unknown -> {
@@ -263,22 +283,22 @@ private fun OnboardingScreen(
                     onClick = onRequestNotifications,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Enable Notifications")
+                    Text(localizedText("common.enable_notifications"))
                 }
                 if (uiState.notificationPermissionState == NotificationPermissionUiState.Disabled) {
                     OutlinedButton(
                         onClick = onOpenNotificationSettings,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Open Notification Settings")
+                        Text(localizedText("common.open_notification_settings"))
                     }
                     Text(
-                        "Notifications are currently disabled for DebridHub. You can try the permission prompt again or re-enable alerts from system settings.",
+                        localizedText("onboarding.notifications_disabled_help"),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 } else {
                     Text(
-                        "You can enable notifications now or later. Reminder alerts start once your account is connected.",
+                        localizedText("onboarding.notifications_later"),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -335,24 +355,24 @@ private fun HomeScreen(
             notificationPermissionState = uiState.notificationPermissionState
         )
 
-        SectionCard(title = "Actions") {
+        SectionCard(title = localizedText("common.actions")) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 Button(onClick = onRefresh, modifier = Modifier.weight(1f)) {
-                    Text("Refresh Status")
+                    Text(localizedText("common.refresh_status"))
                 }
                 OutlinedButton(onClick = onRequestNotifications, modifier = Modifier.weight(1f)) {
-                    Text("Notifications")
+                    Text(localizedText("common.notifications"))
                 }
             }
 
             if (uiState.notificationPermissionState == NotificationPermissionUiState.Disabled) {
                 OutlinedButton(onClick = onOpenNotificationSettings, modifier = Modifier.fillMaxWidth()) {
-                    Text("Open Notification Settings")
+                    Text(localizedText("common.open_notification_settings"))
                 }
             }
 
             OutlinedButton(onClick = onDisconnect, modifier = Modifier.fillMaxWidth()) {
-                Text("Disconnect")
+                Text(localizedText("common.disconnect"))
             }
         }
     }
@@ -381,45 +401,57 @@ private fun TrustCenterScreen(
         }
 
         Text(
-            "See exactly how DebridHub handles auth, storage, diagnostics, and feature boundaries.",
+            localizedText("trust_center.hero_title"),
             style = MaterialTheme.typography.headlineSmall
         )
         Text(
-            "This is in-app product copy based on the current implementation, not a marketing layer or webview.",
+            localizedText("trust_center.hero_body"),
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        SectionCard(title = "Privacy") {
-            Text("DebridHub has no backend. The app talks directly to Real-Debrid from your device.")
-            Text("There is no analytics SDK, tracking pixel, crash-reporting service, or remote account sync in the current app.")
-            Text("Reminder notifications are local to this device and are scheduled using your locally stored account status.")
-            Text("Diagnostics export is manual. Nothing is sent anywhere unless you explicitly share the exported file yourself.")
+        SectionCard(title = localizedText("trust_center.privacy_title")) {
+            Text(localizedText("trust_center.privacy_line_1"))
+            Text(localizedText("trust_center.privacy_line_2"))
+            Text(localizedText("trust_center.privacy_line_3"))
+            Text(localizedText("trust_center.privacy_line_4"))
         }
 
-        SectionCard(title = "Security") {
-            Text("Authentication uses Real-Debrid's official OAuth2 device flow rather than password collection.")
-            Text("Android stores auth state with EncryptedSharedPreferences.")
-            Text("iOS stores auth state in Keychain and migrates legacy NSUserDefaults auth state on first read.")
-            Text("Disconnect clears saved auth state and cancels reminders. DebridHub does not need a companion server to function.")
+        SectionCard(title = localizedText("trust_center.security_title")) {
+            Text(localizedText("trust_center.security_line_1"))
+            Text(localizedText("trust_center.security_line_2_android"))
+            Text(localizedText("trust_center.security_line_2_ios"))
+            Text(localizedText("trust_center.security_line_3"))
         }
 
-        SectionCard(title = "Diagnostics") {
-            Text("Diagnostics export currently includes app version, OS version, last sync timestamp, account expiry state, and limited non-sensitive runtime flags.")
-            Text("Diagnostics export excludes access tokens, refresh tokens, client secrets, username, email, and full account history.")
+        SectionCard(title = localizedText("trust_center.diagnostics_title")) {
+            Text(localizedText("trust_center.diagnostics_line_1"))
+            Text(localizedText("trust_center.diagnostics_line_2"))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(
                     onClick = onRefreshPreview,
                     enabled = !uiState.isLoadingDiagnosticsPreview,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(if (uiState.isLoadingDiagnosticsPreview) "Loading..." else "Refresh Preview")
+                    Text(
+                        if (uiState.isLoadingDiagnosticsPreview) {
+                            localizedText("common.loading")
+                        } else {
+                            localizedText("common.refresh_preview")
+                        }
+                    )
                 }
                 Button(
                     onClick = onExportDiagnostics,
                     enabled = !uiState.isExportingDiagnostics,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(if (uiState.isExportingDiagnostics) "Exporting..." else "Export JSON")
+                    Text(
+                        if (uiState.isExportingDiagnostics) {
+                            localizedText("common.exporting")
+                        } else {
+                            localizedText("common.export_json")
+                        }
+                    )
                 }
             }
 
@@ -428,17 +460,17 @@ private fun TrustCenterScreen(
             } else {
                 SelectionContainer {
                     Text(
-                        text = uiState.diagnosticsPreview ?: "Diagnostics preview is not available yet.",
+                        text = uiState.diagnosticsPreview ?: localizedText("trust_center.preview_unavailable"),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
         }
 
-        SectionCard(title = "About & Compliance") {
-            Text("Current scope is intentionally narrow: account auth, account-status reads, local reminder scheduling, and local diagnostics export.")
-            Text("The app does not currently implement unrestrict, downloads, torrent management, streaming, generated-link sharing, or multi-user account management.")
-            Text("DebridHub uses official Real-Debrid API endpoints and the documented device-auth flow. Users are still responsible for following Real-Debrid's own Terms and account rules.")
+        SectionCard(title = localizedText("trust_center.about_title")) {
+            Text(localizedText("trust_center.about_line_1"))
+            Text(localizedText("trust_center.about_line_2"))
+            Text(localizedText("trust_center.about_line_3"))
         }
     }
 }
@@ -461,21 +493,36 @@ private fun SectionCard(
 
 @Composable
 private fun AccountCard(accountStatus: AccountStatus?, isRefreshing: Boolean) {
-    SectionCard(title = "Account Status") {
+    SectionCard(title = localizedText("account.section_title")) {
         when {
             isRefreshing && accountStatus == null -> {
                 CircularProgressIndicator()
             }
             accountStatus == null -> {
-                Text("No account data loaded yet.")
+                Text(localizedText("account.no_data"))
             }
             else -> {
-                Text("Username: ${accountStatus.username ?: "Unknown"}")
-                Text("Premium: ${if (accountStatus.isPremium) "Active" else "Inactive"}")
-                Text("State: ${accountStatus.expiryState.name.replace('_', ' ')}")
-                Text("Days remaining: ${accountStatus.remainingDays ?: "Unknown"}")
-                Text("Expires: ${accountStatus.expiration?.let(::formatInstant) ?: "Unknown"}")
-                Text("Last checked: ${formatInstant(accountStatus.lastCheckedAt)}")
+                Text(localizedText("account.username", accountStatus.username ?: localizedText("common.unknown")))
+                Text(
+                    localizedText(
+                        "account.premium",
+                        if (accountStatus.isPremium) localizedText("common.active") else localizedText("common.inactive")
+                    )
+                )
+                Text(localizedText("account.state", localizedExpiryState(accountStatus.expiryState.name)))
+                Text(
+                    localizedText(
+                        "account.days_remaining",
+                        accountStatus.remainingDays?.let(::formatIntegerForLocale) ?: localizedText("common.unknown")
+                    )
+                )
+                Text(
+                    localizedText(
+                        "account.expires",
+                        accountStatus.expiration?.let(::formatInstantForLocale) ?: localizedText("common.unknown")
+                    )
+                )
+                Text(localizedText("account.last_checked", formatInstantForLocale(accountStatus.lastCheckedAt)))
             }
         }
     }
@@ -490,9 +537,9 @@ private fun ReminderSettingsCard(
     onNotifyOnExpiryChanged: (Boolean) -> Unit,
     onNotifyAfterExpiryChanged: (Boolean) -> Unit
 ) {
-    SectionCard(title = "Reminder Settings") {
-        ToggleRow("Enable reminders", config.enabled, onReminderEnabledChanged)
-        Text("Days before expiry")
+    SectionCard(title = localizedText("reminders.settings_title")) {
+        ToggleRow(localizedText("reminders.enable"), config.enabled, onReminderEnabledChanged)
+        Text(localizedText("reminders.days_before_expiry"))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -501,13 +548,13 @@ private fun ReminderSettingsCard(
                 FilterChip(
                     onClick = { onReminderDayToggled(day) },
                     selected = config.daysBefore.contains(day),
-                    label = { Text("$day day${if (day == 1) "" else "s"}") }
+                    label = { Text(localizedPlural("reminders.day_count", day, formatIntegerForLocale(day))) }
                 )
             }
         }
-        Text("Selected: ${config.daysBefore.sorted().joinToString()}")
-        ToggleRow("Notify on expiry day", config.notifyOnExpiry, onNotifyOnExpiryChanged)
-        ToggleRow("Notify after expiry", config.notifyAfterExpiry, onNotifyAfterExpiryChanged)
+        Text(localizedText("reminders.selected", formatSelectedReminderDays(config.daysBefore.sorted())))
+        ToggleRow(localizedText("reminders.notify_on_expiry"), config.notifyOnExpiry, onNotifyOnExpiryChanged)
+        ToggleRow(localizedText("reminders.notify_after_expiry"), config.notifyAfterExpiry, onNotifyAfterExpiryChanged)
     }
 }
 
@@ -518,30 +565,30 @@ private fun ReminderScheduleCard(
     reminders: List<ScheduledReminder>,
     notificationPermissionState: NotificationPermissionUiState
 ) {
-    SectionCard(title = "Expected Reminder Schedule") {
+    SectionCard(title = localizedText("reminders.schedule_title")) {
         when {
             accountStatus?.expiration == null -> {
-                Text("Refresh your account to preview local reminders.")
+                Text(localizedText("reminders.refresh_to_preview"))
             }
             !config.enabled -> {
-                Text("Reminders are currently turned off.")
+                Text(localizedText("reminders.turned_off"))
             }
             notificationPermissionState == NotificationPermissionUiState.Disabled -> {
-                Text("Reminders are planned, but notifications are currently disabled for DebridHub. Re-enable them in system settings if you want these alerts to fire.")
+                Text(localizedText("reminders.notifications_disabled"))
                 if (reminders.isNotEmpty()) {
-                    Text("Planned reminder times:")
+                    Text(localizedText("reminders.planned_times"))
                     reminders.forEach { reminder ->
-                        Text("${formatInstant(reminder.fireAt)}: ${reminder.message}")
+                        Text(localizedText("reminders.scheduled_item", formatInstantForLocale(reminder.fireAt), reminder.message))
                     }
                 }
             }
             reminders.isEmpty() -> {
-                Text("No future reminders are planned right now. This can happen if the expiry date is very close, already passed, or your selected reminder windows are already in the past.")
+                Text(localizedText("reminders.no_future_planned"))
             }
             else -> {
-                Text("DebridHub will schedule these local notifications on this device:")
+                Text(localizedText("reminders.local_schedule_intro"))
                 reminders.forEach { reminder ->
-                    Text("${formatInstant(reminder.fireAt)}: ${reminder.message}")
+                    Text(localizedText("reminders.scheduled_item", formatInstantForLocale(reminder.fireAt), reminder.message))
                 }
             }
         }
@@ -578,7 +625,17 @@ private fun MessageBanner(
     }
 }
 
-private fun formatInstant(instant: Instant): String {
-    val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-    return formatter.format(Date(instant.toEpochMilliseconds()))
+@Composable
+private fun localizedExpiryState(rawState: String): String = when (rawState) {
+    "ACTIVE" -> localizedText("account.expiry_state.active")
+    "EXPIRING_SOON" -> localizedText("account.expiry_state.expiring_soon")
+    "EXPIRED" -> localizedText("account.expiry_state.expired")
+    else -> localizedText("account.expiry_state.unknown")
 }
+
+private fun formatSelectedReminderDays(days: List<Int>): String =
+    if (days.isEmpty()) {
+        localizedTextForCurrentLocale("common.none")
+    } else {
+        days.joinToString(separator = ", ") { formatIntegerForLocale(it) }
+    }

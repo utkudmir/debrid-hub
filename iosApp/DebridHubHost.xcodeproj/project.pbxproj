@@ -12,8 +12,11 @@
 		739C7D89D26973212FA28C18 /* Shared.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1E4AE850A4B72C8CF0B39504 /* Shared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		7565AF7AF387225F7F60DDFA /* IOSAppViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F42FE98C6FB40165E02C80E /* IOSAppViewModelTests.swift */; };
 		80790370E3E9F9160FF3CA00 /* Shared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1E4AE850A4B72C8CF0B39504 /* Shared.framework */; };
+		8C2B955F13180500AF99D6CE /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = D0FD397499DA4B3717058C13 /* Localizable.strings */; };
 		9F5708DCBD6A2E5159F62BD4 /* IOSAppViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAEA340595C0556876307764 /* IOSAppViewModel.swift */; };
+		BB0322B716D12C85336A02B9 /* LocalizationSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8234F9F2A5190107157D320F /* LocalizationSmokeTests.swift */; };
 		C6DC042C3AB8717092AD56CD /* DebridHubApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1867AE7CB826BD3B8E0CE678 /* DebridHubApp.swift */; };
+		CB9F97A87E0F8E7E563EA2CE /* AppL10n.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8931F4E88E91BD19C029D112 /* AppL10n.generated.swift */; };
 		E8734FF55C62C214B1CA0450 /* Shared.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1E4AE850A4B72C8CF0B39504 /* Shared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		EC404BED5EB583102F3EA452 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 9501E2417D64B7A98CF74418 /* LaunchScreen.storyboard */; };
 /* End PBXBuildFile section */
@@ -56,11 +59,18 @@
 /* Begin PBXFileReference section */
 		0F34BB3B44E383FC97E182D7 /* DebridHubHost.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DebridHubHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1867AE7CB826BD3B8E0CE678 /* DebridHubApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebridHubApp.swift; sourceTree = "<group>"; };
+		19B5DCA04693F83D567E9474 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
+		1C40A94832FA855471003583 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		1E4AE850A4B72C8CF0B39504 /* Shared.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Shared.framework; path = "../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)/Shared.framework"; sourceTree = "<group>"; };
 		208F2A1AAAADBCD12C46E2A7 /* DebridHubHostTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DebridHubHostTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4F42FE98C6FB40165E02C80E /* IOSAppViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSAppViewModelTests.swift; sourceTree = "<group>"; };
+		5A3E0BE077F0BB5396EB8AB7 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
+		76E3C99F3ECB3A00F4C544C7 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/Localizable.strings; sourceTree = "<group>"; };
+		8234F9F2A5190107157D320F /* LocalizationSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationSmokeTests.swift; sourceTree = "<group>"; };
+		8931F4E88E91BD19C029D112 /* AppL10n.generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppL10n.generated.swift; sourceTree = "<group>"; };
 		9501E2417D64B7A98CF74418 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		B9204C036EA4A301EF591282 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		C7C3744ADBE081DFE641A71A /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		FAEA340595C0556876307764 /* IOSAppViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSAppViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -103,6 +113,14 @@
 			);
 			sourceTree = "<group>";
 		};
+		726886A0FA99E932FAB381C3 /* Generated */ = {
+			isa = PBXGroup;
+			children = (
+				8931F4E88E91BD19C029D112 /* AppL10n.generated.swift */,
+			);
+			path = Generated;
+			sourceTree = "<group>";
+		};
 		8CC2CB5D80D7F72A4164C392 /* DebridHubHost */ = {
 			isa = PBXGroup;
 			children = (
@@ -110,6 +128,8 @@
 				1867AE7CB826BD3B8E0CE678 /* DebridHubApp.swift */,
 				FAEA340595C0556876307764 /* IOSAppViewModel.swift */,
 				9501E2417D64B7A98CF74418 /* LaunchScreen.storyboard */,
+				726886A0FA99E932FAB381C3 /* Generated */,
+				D1D045841A6684CA3DE98792 /* Resources */,
 			);
 			path = DebridHubHost;
 			sourceTree = "<group>";
@@ -118,6 +138,7 @@
 			isa = PBXGroup;
 			children = (
 				4F42FE98C6FB40165E02C80E /* IOSAppViewModelTests.swift */,
+				8234F9F2A5190107157D320F /* LocalizationSmokeTests.swift */,
 			);
 			path = DebridHubHostTests;
 			sourceTree = "<group>";
@@ -128,6 +149,14 @@
 				1E4AE850A4B72C8CF0B39504 /* Shared.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		D1D045841A6684CA3DE98792 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				D0FD397499DA4B3717058C13 /* Localizable.strings */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -198,7 +227,11 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
+				de,
 				en,
+				es,
+				fr,
+				tr,
 			);
 			mainGroup = 32F11133BF7211288CEC7CE2;
 			minimizedProjectReferenceProxies = 1;
@@ -219,6 +252,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				EC404BED5EB583102F3EA452 /* LaunchScreen.storyboard in Resources */,
+				8C2B955F13180500AF99D6CE /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -252,6 +286,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7565AF7AF387225F7F60DDFA /* IOSAppViewModelTests.swift in Sources */,
+				BB0322B716D12C85336A02B9 /* LocalizationSmokeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -259,6 +294,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CB9F97A87E0F8E7E563EA2CE /* AppL10n.generated.swift in Sources */,
 				36E49109797BDD687F86077B /* ContentView.swift in Sources */,
 				C6DC042C3AB8717092AD56CD /* DebridHubApp.swift in Sources */,
 				9F5708DCBD6A2E5159F62BD4 /* IOSAppViewModel.swift in Sources */,
@@ -274,6 +310,21 @@
 			targetProxy = C8874601B7202762BFD8F4D4 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		D0FD397499DA4B3717058C13 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				5A3E0BE077F0BB5396EB8AB7 /* de */,
+				C7C3744ADBE081DFE641A71A /* en */,
+				1C40A94832FA855471003583 /* es */,
+				19B5DCA04693F83D567E9474 /* fr */,
+				76E3C99F3ECB3A00F4C544C7 /* tr */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		88C3C9F3C8AE0B9663129E77 /* Release */ = {

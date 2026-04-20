@@ -46,18 +46,18 @@ struct ContentView: View {
                     .padding(24)
                 }
             }
-            .navigationTitle(isTrustCenterOpen ? "Trust Center" : "DebridHub")
+            .navigationTitle(isTrustCenterOpen ? localized("common.trust_center") : localized("common.app_name"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if isTrustCenterOpen {
                     ToolbarItem(placement: .topBarLeading) {
-                        Button("Back") {
+                        Button(localized("common.back")) {
                             isTrustCenterOpen = false
                         }
                     }
                 } else {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("Trust Center") {
+                        Button(localized("common.trust_center")) {
                             isTrustCenterOpen = true
                         }
                     }
@@ -76,66 +76,63 @@ struct ContentView: View {
 
     private var onboardingSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Track your Real-Debrid subscription and renew before it lapses.")
+            Text(localized("onboarding.hero_title"))
                 .font(.system(size: 30, weight: .bold, design: .rounded))
                 .foregroundStyle(Color(red: 0.09, green: 0.18, blue: 0.29))
 
-            Text(
-                "DebridHub talks directly to the official Real-Debrid API. " +
-                    "Tokens stay on device and no backend is involved."
-            )
+            Text(localized("onboarding.hero_body"))
                 .font(.body)
                 .foregroundStyle(.secondary)
 
-            TrustCard(title: "Before you connect") {
-                TrustLine("1. Tap Connect Real-Debrid to request a device code.")
-                TrustLine("2. Copy the code if you want, then approve the device on Real-Debrid.")
-                TrustLine("3. If your browser handoff is interrupted, use Open Authorization Page below.")
-                TrustLine("4. Return here while DebridHub polls for completion.")
-                TrustLine(
-                    "You can open Trust Center first if you want to inspect privacy, " +
-                        "security, diagnostics, and compliance details."
-                )
+            TrustCard(title: localized("onboarding.before_connect_title")) {
+                TrustLine(localized("onboarding.before_connect_step_1"))
+                TrustLine(localized("onboarding.before_connect_step_2"))
+                TrustLine(localized("onboarding.before_connect_step_3"))
+                TrustLine(localized("onboarding.before_connect_step_4"))
+                TrustLine(localized("onboarding.before_connect_step_5"))
             }
 
             if let code = viewModel.userCode {
-                TrustCard(title: "Finish authorization") {
-                    TrustLine("Enter this code on Real-Debrid.")
+                TrustCard(title: localized("onboarding.finish_authorization_title")) {
+                    TrustLine(localized("onboarding.enter_code"))
                     Text(code)
                         .font(.system(.title3, design: .monospaced).weight(.semibold))
                         .textSelection(.enabled)
 
                     if let verificationURL = viewModel.verificationURL {
-                        TrustLine("Verification URL: \(verificationURL)")
+                        TrustLine(localized("onboarding.verification_url", verificationURL))
                     }
 
                     if let directVerificationURL = viewModel.directVerificationURL {
-                        TrustLine("Direct verification URL: \(directVerificationURL)")
+                        TrustLine(localized("onboarding.direct_verification_url", directVerificationURL))
                     }
 
                     if let interval = viewModel.authorizationPollIntervalSeconds,
                        let expiration = currentAuthorizationExpiration {
-                        TrustLine("Polling every \(interval)s until \(formatInstant(expiration))")
+                        TrustLine(
+                            localized(
+                                "onboarding.polling_until",
+                                formatInteger(Int(interval)),
+                                formatInstant(expiration)
+                            )
+                        )
                     }
 
-                    TrustLine(
-                        "Waiting for Real-Debrid approval. After you approve the device, " +
-                            "come back here and DebridHub will finish the login automatically."
-                    )
+                    TrustLine(localized("onboarding.waiting_for_approval"))
 
                     HStack(spacing: 12) {
-                        Button("Copy Code") {
+                        Button(localized("common.copy_code")) {
                             UIPasteboard.general.string = code
                         }
                         .buttonStyle(.bordered)
 
-                        Button("Open Authorization Page") {
+                        Button(localized("common.open_authorization_page")) {
                             openAuthorizationPage()
                         }
                         .buttonStyle(.borderedProminent)
                     }
 
-                    Button("Cancel Authorization") {
+                    Button(localized("common.cancel_authorization")) {
                         viewModel.cancelAuthorization()
                     }
                     .buttonStyle(.bordered)
@@ -143,13 +140,13 @@ struct ContentView: View {
             }
 
             if viewModel.errorMessage != nil && viewModel.userCode == nil {
-                Button("Start Again") {
+                Button(localized("common.start_again")) {
                     viewModel.startAuthorization()
                 }
                 .buttonStyle(.bordered)
             }
 
-            Button("Connect Real-Debrid") {
+            Button(localized("common.connect_real_debrid")) {
                 viewModel.startAuthorization()
             }
             .buttonStyle(.borderedProminent)
@@ -157,36 +154,37 @@ struct ContentView: View {
 
             switch viewModel.notificationPermissionState {
             case .granted:
-                Text("Notifications are already enabled on this device.")
+                Text(localized("onboarding.notifications_already_enabled"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             case .denied:
-                Button("Enable Notifications") {
+                Button(localized("common.enable_notifications")) {
                     viewModel.requestNotifications()
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
 
-                Button("Open Notification Settings") {
+                Button(localized("common.open_notification_settings")) {
                     viewModel.openAppSettings()
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
 
-                Text(
-                    "Notifications are currently disabled for DebridHub. You can try the " +
-                        "permission prompt again or re-enable alerts from system settings."
-                )
+                Text(localized("onboarding.notifications_disabled_help"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             case .notDetermined, .unknown:
-                Button(viewModel.isRequestingNotifications ? "Enabling Notifications..." : "Enable Notifications") {
+                Button(
+                    viewModel.isRequestingNotifications ?
+                        localized("common.enabling_notifications") :
+                        localized("common.enable_notifications")
+                ) {
                     viewModel.requestNotifications()
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
 
-                Text("You can enable notifications now or later. Reminder alerts start once your account is connected.")
+                Text(localized("onboarding.notifications_later"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -194,32 +192,51 @@ struct ContentView: View {
     }
 
     private var accountSection: some View {
-        TrustCard(title: "Account Status") {
+        TrustCard(title: localized("account.section_title")) {
             if let accountStatus = viewModel.accountStatus {
-                TrustLine("Username: \(accountStatus.username ?? "Unknown")")
-                TrustLine("Premium: \(accountStatus.isPremium ? "Active" : "Inactive")")
-                TrustLine("State: \(formatExpiryState(accountStatus.expiryState.name))")
-                TrustLine("Days remaining: \(accountStatus.remainingDays?.description ?? "Unknown")")
-                TrustLine("Expires: \(accountStatus.expiration.map(formatInstant) ?? "Unknown")")
-                TrustLine("Last checked: \(formatInstant(accountStatus.lastCheckedAt))")
+                TrustLine(localized("account.username", accountStatus.username ?? localized("common.unknown")))
+                TrustLine(
+                    localized(
+                        "account.premium",
+                        accountStatus.isPremium ? localized("common.active") : localized("common.inactive")
+                    )
+                )
+                TrustLine(localized("account.state", localizedExpiryState(accountStatus.expiryState.name)))
+                TrustLine(
+                    localized(
+                        "account.days_remaining",
+                        accountStatus.remainingDays.map { formatInteger($0.intValue) } ?? localized("common.unknown")
+                    )
+                )
+                TrustLine(
+                    localized(
+                        "account.expires",
+                        accountStatus.expiration.map(formatInstant) ?? localized("common.unknown")
+                    )
+                )
+                TrustLine(localized("account.last_checked", formatInstant(accountStatus.lastCheckedAt)))
             } else if viewModel.isRefreshing {
                 ProgressView()
             } else {
-                TrustLine("No account data loaded yet.")
+                TrustLine(localized("account.no_data"))
             }
         }
     }
 
     private var actionsSection: some View {
-        TrustCard(title: "Actions") {
+        TrustCard(title: localized("common.actions")) {
             HStack(spacing: 12) {
-                Button(viewModel.isRefreshing ? "Refreshing..." : "Refresh Status") {
+                Button(
+                    viewModel.isRefreshing ?
+                        localized("common.refreshing_status") :
+                        localized("common.refresh_status")
+                ) {
                     Task { await viewModel.refreshAccount() }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(viewModel.isRefreshing)
 
-                Button("Notifications") {
+                Button(localized("common.notifications")) {
                     viewModel.requestNotifications()
                 }
                 .buttonStyle(.bordered)
@@ -227,13 +244,13 @@ struct ContentView: View {
             }
 
             if viewModel.notificationPermissionState == .denied {
-                Button("Open Notification Settings") {
+                Button(localized("common.open_notification_settings")) {
                     viewModel.openAppSettings()
                 }
                 .buttonStyle(.bordered)
             }
 
-            Button("Disconnect", role: .destructive) {
+            Button(localized("common.disconnect"), role: .destructive) {
                 viewModel.disconnect()
             }
             .buttonStyle(.bordered)
@@ -241,9 +258,9 @@ struct ContentView: View {
     }
 
     private var reminderSettingsSection: some View {
-        TrustCard(title: "Reminder Settings") {
+        TrustCard(title: localized("reminders.settings_title")) {
             Toggle(
-                "Enable reminders",
+                localized("reminders.enable"),
                 isOn: Binding(
                     get: { viewModel.reminderConfig.enabled },
                     set: { viewModel.setReminderEnabled($0) }
@@ -251,32 +268,32 @@ struct ContentView: View {
             )
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("Days before expiry")
+                Text(localized("reminders.days_before_expiry"))
                     .font(.subheadline.weight(.semibold))
 
                 HStack(spacing: 10) {
                     ReminderDayButton(
-                        label: "7 days",
+                        label: localizedPlural("reminders.day_count", count: 7, formatInteger(7)),
                         isSelected: viewModel.reminderConfig.sevenDayReminder,
                         action: { viewModel.toggleReminderDay(7) }
                     )
                     ReminderDayButton(
-                        label: "3 days",
+                        label: localizedPlural("reminders.day_count", count: 3, formatInteger(3)),
                         isSelected: viewModel.reminderConfig.threeDayReminder,
                         action: { viewModel.toggleReminderDay(3) }
                     )
                     ReminderDayButton(
-                        label: "1 day",
+                        label: localizedPlural("reminders.day_count", count: 1, formatInteger(1)),
                         isSelected: viewModel.reminderConfig.oneDayReminder,
                         action: { viewModel.toggleReminderDay(1) }
                     )
                 }
 
-                TrustLine("Selected: \(selectedReminderDays)")
+                TrustLine(localized("reminders.selected", selectedReminderDays))
             }
 
             Toggle(
-                "Notify on expiry day",
+                localized("reminders.notify_on_expiry"),
                 isOn: Binding(
                     get: { viewModel.reminderConfig.notifyOnExpiry },
                     set: { viewModel.setNotifyOnExpiry($0) }
@@ -284,7 +301,7 @@ struct ContentView: View {
             )
 
             Toggle(
-                "Notify after expiry",
+                localized("reminders.notify_after_expiry"),
                 isOn: Binding(
                     get: { viewModel.reminderConfig.notifyAfterExpiry },
                     set: { viewModel.setNotifyAfterExpiry($0) }
@@ -294,25 +311,18 @@ struct ContentView: View {
     }
 
     private var reminderScheduleSection: some View {
-        TrustCard(title: "Expected Reminder Schedule") {
+        TrustCard(title: localized("reminders.schedule_title")) {
             if viewModel.accountStatus?.expiration == nil {
-                TrustLine("Refresh your account to preview local reminders.")
+                TrustLine(localized("reminders.refresh_to_preview"))
             } else if !viewModel.reminderConfig.enabled {
-                TrustLine("Reminders are currently turned off.")
+                TrustLine(localized("reminders.turned_off"))
             } else if viewModel.notificationPermissionState == .denied {
-                TrustLine(
-                    "Reminders are planned, but notifications are currently disabled for " +
-                        "DebridHub. Re-enable them in system settings if you want these alerts to fire."
-                )
+                TrustLine(localized("reminders.notifications_disabled"))
                 reminderListLines
             } else if viewModel.scheduledReminders.isEmpty {
-                TrustLine(
-                    "No future reminders are planned right now. This can happen if the " +
-                        "expiry date is very close, already passed, or your selected reminder windows " +
-                        "are already in the past."
-                )
+                TrustLine(localized("reminders.no_future_planned"))
             } else {
-                TrustLine("DebridHub will schedule these local notifications on this device:")
+                TrustLine(localized("reminders.local_schedule_intro"))
                 reminderListLines
             }
         }
@@ -321,78 +331,59 @@ struct ContentView: View {
     @ViewBuilder
     private var reminderListLines: some View {
         if viewModel.scheduledReminders.isEmpty {
-            TrustLine(
-                "No future reminders are planned right now. This can happen if the expiry " +
-                    "date is very close, already passed, or your selected reminder windows are already in the past."
-            )
+            TrustLine(localized("reminders.no_future_planned"))
         } else {
-            TrustLine("Planned reminder times:")
+            TrustLine(localized("reminders.planned_times"))
             ForEach(Array(viewModel.scheduledReminders.enumerated()), id: \.offset) { _, reminder in
-                TrustLine("\(formatInstant(reminder.fireAt)): \(reminder.message)")
+                TrustLine(localized("reminders.scheduled_item", formatInstant(reminder.fireAt), reminder.message))
             }
         }
     }
 
     private var trustCenterSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("See exactly how DebridHub handles auth, storage, diagnostics, and feature boundaries.")
+            Text(localized("trust_center.hero_title"))
                 .font(.title2.bold())
                 .foregroundStyle(Color(red: 0.09, green: 0.18, blue: 0.29))
 
-            Text("This is in-app product copy based on the current implementation, not a marketing layer or webview.")
+            Text(localized("trust_center.hero_body"))
                 .font(.body)
                 .foregroundStyle(.secondary)
 
-            TrustCard(title: "Privacy") {
-                TrustLine("DebridHub has no backend. The app talks directly to Real-Debrid from your device.")
-                TrustLine(
-                    "There is no analytics SDK, tracking pixel, crash-reporting service, " +
-                        "or remote account sync in the current app."
-                )
-                TrustLine(
-                    "Reminder notifications are local to this device and are scheduled " +
-                        "using your locally stored account status."
-                )
-                TrustLine(
-                    "Diagnostics export is manual. Nothing is sent anywhere unless you " +
-                        "explicitly share the exported file yourself."
-                )
+            TrustCard(title: localized("trust_center.privacy_title")) {
+                TrustLine(localized("trust_center.privacy_line_1"))
+                TrustLine(localized("trust_center.privacy_line_2"))
+                TrustLine(localized("trust_center.privacy_line_3"))
+                TrustLine(localized("trust_center.privacy_line_4"))
             }
 
-            TrustCard(title: "Security") {
-                TrustLine(
-                    "Authentication uses Real-Debrid's official OAuth2 device flow rather " +
-                        "than password collection."
-                )
-                TrustLine("Android stores auth state with EncryptedSharedPreferences.")
-                TrustLine(
-                    "iOS stores auth state in Keychain and migrates legacy NSUserDefaults " +
-                        "auth state on first read."
-                )
-                TrustLine(
-                    "Disconnect clears saved auth state and cancels reminders. DebridHub " +
-                        "does not need a companion server to function."
-                )
+            TrustCard(title: localized("trust_center.security_title")) {
+                TrustLine(localized("trust_center.security_line_1"))
+                TrustLine(localized("trust_center.security_line_2_android"))
+                TrustLine(localized("trust_center.security_line_2_ios"))
+                TrustLine(localized("trust_center.security_line_3"))
             }
 
-            TrustCard(title: "Diagnostics") {
-                TrustLine(
-                    "Diagnostics export currently includes app version, OS version, last " +
-                        "sync timestamp, account expiry state, and limited non-sensitive runtime flags."
-                )
-                TrustLine(
-                    "Diagnostics export excludes access tokens, refresh tokens, client " +
-                        "secrets, username, email, and full account history."
-                )
+            TrustCard(title: localized("trust_center.diagnostics_title")) {
+                TrustLine(localized("trust_center.diagnostics_line_1"))
+                TrustLine(localized("trust_center.diagnostics_line_2"))
 
                 HStack(spacing: 12) {
-                    Button(viewModel.isLoadingDiagnosticsPreview ? "Loading..." : "Refresh Preview") {
+                    Button(
+                        viewModel.isLoadingDiagnosticsPreview ?
+                            localized("common.loading") :
+                            localized("common.refresh_preview")
+                    ) {
                         viewModel.loadDiagnosticsPreview()
                     }
                     .buttonStyle(.bordered)
                     .disabled(viewModel.isLoadingDiagnosticsPreview)
 
-                    Button(viewModel.isExporting ? "Exporting..." : "Export JSON") {
+                    Button(
+                        viewModel.isExporting ?
+                            localized("common.exporting") :
+                            localized("common.export_json")
+                    ) {
                         viewModel.exportDiagnostics()
                     }
                     .buttonStyle(.borderedProminent)
@@ -402,26 +393,16 @@ struct ContentView: View {
                 if viewModel.isLoadingDiagnosticsPreview && viewModel.diagnosticsPreview == nil {
                     ProgressView()
                 } else {
-                    Text(viewModel.diagnosticsPreview ?? "Diagnostics preview is not available yet.")
+                    Text(viewModel.diagnosticsPreview ?? localized("trust_center.preview_unavailable"))
                         .font(.system(.footnote, design: .monospaced))
                         .textSelection(.enabled)
                 }
             }
 
-            TrustCard(title: "About & Compliance") {
-                TrustLine(
-                    "Current scope is intentionally narrow: account auth, account-status " +
-                        "reads, local reminder scheduling, and local diagnostics export."
-                )
-                TrustLine(
-                    "The app does not currently implement unrestrict, downloads, torrent " +
-                        "management, streaming, generated-link sharing, or multi-user account management."
-                )
-                TrustLine(
-                    "DebridHub uses official Real-Debrid API endpoints and the documented " +
-                        "device-auth flow. Users are still responsible for following " +
-                        "Real-Debrid's own Terms and account rules."
-                )
+            TrustCard(title: localized("trust_center.about_title")) {
+                TrustLine(localized("trust_center.about_line_1"))
+                TrustLine(localized("trust_center.about_line_2"))
+                TrustLine(localized("trust_center.about_line_3"))
             }
         }
     }
@@ -429,15 +410,15 @@ struct ContentView: View {
     private var selectedReminderDays: String {
         var values: [String] = []
         if viewModel.reminderConfig.sevenDayReminder {
-            values.append("7")
+            values.append(formatInteger(7))
         }
         if viewModel.reminderConfig.threeDayReminder {
-            values.append("3")
+            values.append(formatInteger(3))
         }
         if viewModel.reminderConfig.oneDayReminder {
-            values.append("1")
+            values.append(formatInteger(1))
         }
-        return values.isEmpty ? "None" : values.joined(separator: ", ")
+        return values.isEmpty ? localized("common.none") : values.joined(separator: ", ")
     }
 
     private var currentAuthorizationExpiration: Kotlinx_datetimeInstant? {
@@ -454,12 +435,41 @@ struct ContentView: View {
         }
     }
 
-    private func formatExpiryState(_ state: String) -> String {
-        state.replacingOccurrences(of: "_", with: " ")
+    private func localizedExpiryState(_ state: String) -> String {
+        switch state {
+        case "ACTIVE":
+            return localized("account.expiry_state.active")
+        case "EXPIRING_SOON":
+            return localized("account.expiry_state.expiring_soon")
+        case "EXPIRED":
+            return localized("account.expiry_state.expired")
+        default:
+            return localized("account.expiry_state.unknown")
+        }
     }
 
     private func formatInstant(_ instant: Kotlinx_datetimeInstant) -> String {
         dateFormatter.string(from: Date(timeIntervalSince1970: TimeInterval(instant.toEpochMilliseconds()) / 1000))
+    }
+
+    private func formatInteger(_ value: Int) -> String {
+        integerFormatter.string(from: NSNumber(value: value)) ?? String(value)
+    }
+
+    private func localized(_ key: String) -> String {
+        AppL10n.text(key)
+    }
+
+    private func localized(_ key: String, _ arg0: String) -> String {
+        AppL10n.text(key, arg0)
+    }
+
+    private func localized(_ key: String, _ arg0: String, _ arg1: String) -> String {
+        AppL10n.text(key, arg0, arg1)
+    }
+
+    private func localizedPlural(_ key: String, count: Int, _ arg0: String) -> String {
+        AppL10n.plural(key, count: count, arg0)
     }
 }
 
@@ -468,7 +478,15 @@ private let dateFormatter: DateFormatter = {
     formatter.calendar = .current
     formatter.locale = .current
     formatter.timeZone = .current
-    formatter.dateFormat = "yyyy-MM-dd HH:mm"
+    formatter.dateStyle = .medium
+    formatter.timeStyle = .short
+    return formatter
+}()
+
+private let integerFormatter: NumberFormatter = {
+    let formatter = NumberFormatter()
+    formatter.locale = .current
+    formatter.numberStyle = .decimal
     return formatter
 }()
 

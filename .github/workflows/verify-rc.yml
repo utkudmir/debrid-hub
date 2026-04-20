@@ -13,6 +13,7 @@ on:
       - .github/workflows/verify-rc.yml
       - .detekt.yml
       - .swiftlint.yml
+      - localization/**
       - Makefile
       - build.gradle.kts
       - settings.gradle.kts
@@ -25,6 +26,7 @@ on:
       - iosApp/**
       - docs/release-gate.md
       - docs/appstore-review-checklist.md
+      - docs/localization.md
   push:
     branches:
       - main
@@ -32,6 +34,7 @@ on:
       - .github/workflows/verify-rc.yml
       - .detekt.yml
       - .swiftlint.yml
+      - localization/**
       - Makefile
       - build.gradle.kts
       - settings.gradle.kts
@@ -44,6 +47,7 @@ on:
       - iosApp/**
       - docs/release-gate.md
       - docs/appstore-review-checklist.md
+      - docs/localization.md
   schedule:
     - cron: "0 3 * * 1-5"
   workflow_dispatch:
@@ -135,10 +139,11 @@ jobs:
           java-version: "21"
           cache: gradle
 
-      - name: Run shared static analysis and tests
+      - name: Run localization checks, shared static analysis, and tests
         shell: bash
         run: |
           set -euo pipefail
+          make localization-check
           make shared-static-analysis
           make shared-test
 

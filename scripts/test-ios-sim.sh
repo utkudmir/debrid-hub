@@ -7,6 +7,7 @@ SIMULATOR_NAME="${IOS_SIMULATOR_NAME:-}"
 SIMULATOR_UDID="${IOS_SIMULATOR_UDID:-}"
 IOS_DEVICE_CLASS="${IOS_DEVICE_CLASS:-latest-phone}"
 IOS_RESOLVER_SCRIPT="$ROOT_DIR/scripts/resolve-ios-simulator.py"
+BUNDLE_ID="app.debridhub.ios"
 
 if [[ -z "${JAVA_HOME:-}" || ! -x "$JAVA_HOME/bin/java" ]]; then
   export JAVA_HOME="$(/usr/libexec/java_home -v 21 2>/dev/null)"
@@ -35,6 +36,13 @@ else
   echo "IOS_SIMULATOR_UDID or IOS_SIMULATOR_NAME must be set for iOS simulator tests." >&2
   exit 1
 fi
+
+open -a Simulator >/dev/null 2>&1 || true
+xcrun simctl shutdown "$SIMULATOR_UDID" >/dev/null 2>&1 || true
+xcrun simctl boot "$SIMULATOR_UDID" >/dev/null 2>&1 || true
+xcrun simctl bootstatus "$SIMULATOR_UDID" -b
+xcrun simctl terminate "$SIMULATOR_UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+xcrun simctl uninstall "$SIMULATOR_UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 
 xcodebuild \
   -project "$ROOT_DIR/iosApp/DebridHubHost.xcodeproj" \

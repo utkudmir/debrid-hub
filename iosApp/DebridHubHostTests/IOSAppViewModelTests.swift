@@ -1082,7 +1082,7 @@ final class IOSAppViewModelTests: XCTestCase {
         }
 
         await MainActor.run {
-            XCTAssertEqual("The device authorization session expired.", viewModel.errorMessage)
+            XCTAssertEqual("The device authorization session expired. Start again.", viewModel.errorMessage)
             XCTAssertNil(viewModel.userCode)
             XCTAssertNil(viewModel.authorizationBrowserTarget)
         }

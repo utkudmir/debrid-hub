@@ -183,7 +183,7 @@ class DebridHubViewModelTest {
         viewModel.requestNotificationPermission()
         advanceUntilIdle()
 
-        assertEquals("Notifications are already enabled.", viewModel.uiState.value.infoMessage)
+        assertEquals("Notifications are already enabled on this device.", viewModel.uiState.value.infoMessage)
         assertEquals(NotificationPermissionUiState.Granted, viewModel.uiState.value.notificationPermissionState)
     }
 
@@ -689,7 +689,7 @@ class DebridHubViewModelTest {
         viewModel.requestNotificationPermission()
         advanceUntilIdle()
 
-        assertEquals("Notifications are already enabled.", viewModel.uiState.value.infoMessage)
+        assertEquals("Notifications are already enabled on this device.", viewModel.uiState.value.infoMessage)
         assertEquals(baselineSchedules + 1, reminderRepository.scheduleCallCount)
     }
 

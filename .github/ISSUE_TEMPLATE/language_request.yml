@@ -1,0 +1,77 @@
+name: Language support request
+description: Request a new app language or help maintain an existing translation
+title: "[Language] "
+labels:
+  - i18n
+  - language-request
+body:
+  - type: input
+    id: language_name
+    attributes:
+      label: Language name
+      description: What language should DebridHub support?
+      placeholder: Turkish
+    validations:
+      required: true
+  - type: input
+    id: bcp47_code
+    attributes:
+      label: BCP-47 locale code
+      description: Use a locale code such as `tr`, `fr`, `de`, or `pt-BR`
+      placeholder: tr
+    validations:
+      required: true
+  - type: input
+    id: region_script
+    attributes:
+      label: Region or script variant
+      description: If relevant, specify region or script requirements
+      placeholder: Latin script, Brazil region, etc.
+    validations:
+      required: false
+  - type: dropdown
+    id: native_review
+    attributes:
+      label: Native-speaker review availability
+      options:
+        - I can review or provide native-speaker feedback
+        - I know someone who can review it
+        - Native-speaker review is not available yet
+    validations:
+      required: true
+  - type: dropdown
+    id: contribute_translation
+    attributes:
+      label: Can you contribute a translation PR?
+      options:
+        - Yes, I can submit a PR
+        - I can help review a PR
+        - No, I am only requesting the language
+    validations:
+      required: true
+  - type: dropdown
+    id: metadata_scope
+    attributes:
+      label: Store metadata also needed?
+      description: App Store / Play Store localization is tracked separately from the first in-app rollout.
+      options:
+        - In-app localization only
+        - In-app localization and store metadata
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: user_value
+    attributes:
+      label: Why is this language valuable?
+      description: Tell us who would benefit and how you expect the language to be used.
+      placeholder: This would help Turkish-speaking users understand reminder settings and trust-center copy more safely.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional notes
+      description: Include terminology preferences, legal wording concerns, or anything else maintainers should know.
+    validations:
+      required: false

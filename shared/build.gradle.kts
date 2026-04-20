@@ -87,6 +87,7 @@ kotlin {
                 implementation("io.ktor:ktor-client-darwin:2.3.12")
             }
         }
+        named("iosX64Main") { dependsOn(iosMain) }
         named("iosArm64Main") { dependsOn(iosMain) }
         named("iosSimulatorArm64Main") { dependsOn(iosMain) }
     }

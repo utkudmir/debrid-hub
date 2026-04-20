@@ -1,5 +1,7 @@
 package app.debridhub.shared.core
 
+import app.debridhub.shared.localization.AppLocalization
+
 object RealDebridErrorMessages {
     private val secureConnectionSignals = listOf(
         "plaintext connection",
@@ -30,13 +32,10 @@ object RealDebridErrorMessages {
 
         return when {
             secureConnectionSignals.any(normalized::contains) -> {
-                "Secure connection to Real-Debrid failed. " +
-                    "Your network appears to be intercepting or downgrading HTTPS traffic " +
-                    "to api.real-debrid.com. Disable captive portals, VPNs, secure web " +
-                    "gateways, or TLS inspection, or try a different network."
+                AppLocalization.text("errors.secure_connection_failed")
             }
             networkReachabilitySignals.any(normalized::contains) -> {
-                "Couldn't reach Real-Debrid. Check your internet connection or try a different network."
+                AppLocalization.text("errors.network_unreachable")
             }
             trimmed.isNotEmpty() -> trimmed
             else -> fallback

@@ -3,6 +3,8 @@ included:
   - iosApp/DebridHubHostTests
 
 excluded:
+  - iosApp/DebridHubHost/Generated
+  - iosApp/DebridHubHost/Resources
   - iosApp/DebridHubHost.xcodeproj
   - build
 

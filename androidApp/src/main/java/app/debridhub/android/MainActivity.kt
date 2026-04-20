@@ -55,7 +55,11 @@ class MainActivity : ComponentActivity() {
         try {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "No browser available to open Real-Debrid.", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                this,
+                localizedTextForCurrentLocale("common.no_browser_available"),
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
@@ -72,7 +76,12 @@ class MainActivity : ComponentActivity() {
             putExtra(Intent.EXTRA_SUBJECT, displayName)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        startActivity(Intent.createChooser(intent, "Share diagnostics"))
+        startActivity(
+            Intent.createChooser(
+                intent,
+                localizedTextForCurrentLocale("common.share_diagnostics")
+            )
+        )
     }
 
     private fun openNotificationSettings() {
@@ -89,7 +98,11 @@ class MainActivity : ComponentActivity() {
         try {
             startActivity(intent)
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "Unable to open notification settings.", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                this,
+                localizedTextForCurrentLocale("common.unable_open_notification_settings"),
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 }
