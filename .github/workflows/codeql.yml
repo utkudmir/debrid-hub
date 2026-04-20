@@ -44,7 +44,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :shared:assemble :androidApp:assembleDebug
+          ./gradlew :shared:allTests :androidApp:lint
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4

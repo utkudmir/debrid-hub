@@ -28,8 +28,7 @@ class NotificationSchedulerImpl(
         val ids = mutableSetOf<String>()
         reminders.forEach { reminder ->
             val notificationId = reminder.fireAt.epochSeconds.toInt()
-            val intent = Intent(ACTION_REMINDER_ALARM)
-                .setClassName(context.packageName, REMINDER_RECEIVER_CLASS)
+            val intent = Intent(context, ReminderAlarmReceiver::class.java)
                 .putExtra(ReminderAlarmReceiver.EXTRA_NOTIFICATION_ID, notificationId)
                 .putExtra(ReminderAlarmReceiver.EXTRA_MESSAGE, reminder.message)
             val pendingIntent = PendingIntent.getBroadcast(
@@ -57,7 +56,7 @@ class NotificationSchedulerImpl(
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
                 notificationId,
-                Intent(ACTION_REMINDER_ALARM).setClassName(context.packageName, REMINDER_RECEIVER_CLASS),
+                Intent(context, ReminderAlarmReceiver::class.java),
                 PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
             )
             if (pendingIntent != null) {
@@ -69,8 +68,6 @@ class NotificationSchedulerImpl(
     }
 
     private companion object {
-        const val ACTION_REMINDER_ALARM = "app.debridhub.ACTION_REMINDER_ALARM"
-        const val REMINDER_RECEIVER_CLASS = "app.debridhub.shared.platform.ReminderAlarmReceiver"
         const val KEY_NOTIFICATION_IDS = "notification_ids"
     }
 }
