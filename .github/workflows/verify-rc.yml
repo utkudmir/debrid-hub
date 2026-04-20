@@ -89,7 +89,7 @@ jobs:
 
       - name: Detect verification-relevant changes
         id: relevant-changes
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const exactMatches = new Set([
