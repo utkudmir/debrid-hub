@@ -232,7 +232,7 @@ jobs:
 
       - name: Cache Android AVD snapshot
         id: avd-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.android/avd/*
@@ -270,7 +270,7 @@ jobs:
 
       - name: Save Android launch smoke build cache
         if: success()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: androidApp/build/outputs/apk/debug/
           key: ${{ env.ANDROID_BUILD_CACHE_KEY }}
@@ -328,7 +328,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Restore Android build cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: androidApp/build/outputs/apk/debug/
           key: ${{ env.ANDROID_BUILD_CACHE_KEY }}
@@ -336,7 +336,7 @@ jobs:
 
       - name: Cache Android AVD snapshot
         id: avd-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.android/avd/*
@@ -429,7 +429,7 @@ jobs:
 
       - name: Save iOS build cache for launch smoke
         if: success()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: build/ios-derived-data/Build/Products/Debug-iphonesimulator/
           key: ${{ env.IOS_BUILD_CACHE_KEY }}
@@ -470,7 +470,7 @@ jobs:
           cache: gradle
 
       - name: Restore iOS build cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: build/ios-derived-data/Build/Products/Debug-iphonesimulator/
           key: ${{ env.IOS_BUILD_CACHE_KEY }}
