@@ -77,7 +77,7 @@ kotlin {
         named("androidMain") {
             dependencies {
                 implementation("io.ktor:ktor-client-okhttp:2.3.12")
-                implementation("androidx.security:security-crypto:1.1.0-alpha06")
+                implementation("androidx.security:security-crypto:1.1.0")
                 implementation("androidx.core:core-ktx:1.15.0")
             }
         }
