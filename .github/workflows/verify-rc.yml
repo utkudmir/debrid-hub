@@ -132,12 +132,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK 21 (cached)
+        if: github.event_name != 'pull_request'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
           cache: gradle
+
+      - name: Set up JDK 21
+        if: github.event_name == 'pull_request'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
 
       - name: Run localization checks, shared static analysis, and tests
         shell: bash
@@ -169,12 +177,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK 21 (cached)
+        if: github.event_name != 'pull_request'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
           cache: gradle
+
+      - name: Set up JDK 21
+        if: github.event_name == 'pull_request'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
 
       - name: Run Android lint
         shell: bash
@@ -204,18 +220,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs['plan-verification'].outputs.android_matrix) }}
-    env:
-      ANDROID_BUILD_CACHE_KEY: android-debug-apk-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.slug }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK 21 (cached)
+        if: github.event_name != 'pull_request'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
           cache: gradle
+
+      - name: Set up JDK 21
+        if: github.event_name == 'pull_request'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
 
       - name: Enable KVM group perms
         if: runner.os == 'Linux'
@@ -268,12 +290,14 @@ jobs:
           disable-animations: true
           script: ./gradlew :androidApp:testDebugUnitTest :androidApp:assembleDebug :androidApp:connectedDebugAndroidTest
 
-      - name: Save Android launch smoke build cache
+      - name: Upload Android debug APK for launch smoke
         if: success()
-        uses: actions/cache/save@v4
+        uses: actions/upload-artifact@v4
         with:
-          path: androidApp/build/outputs/apk/debug/
-          key: ${{ env.ANDROID_BUILD_CACHE_KEY }}
+          name: android-debug-apk-${{ matrix.slug }}
+          path: androidApp/build/outputs/apk/debug/androidApp-debug.apk
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Upload Android automated test diagnostics
         if: failure()
@@ -300,19 +324,26 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs['plan-verification'].outputs.android_matrix) }}
     env:
-      ANDROID_BUILD_CACHE_KEY: android-debug-apk-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.slug }}
       ANDROID_VERIFY_LOG_DIR: ${{ github.workspace }}/build/rc-verify/android/${{ matrix.slug }}
       ANDROID_PACKAGE: app.debridhub
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK 21 (cached)
+        if: github.event_name != 'pull_request'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
           cache: gradle
+
+      - name: Set up JDK 21
+        if: github.event_name == 'pull_request'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
 
       - name: Enable KVM group perms
         if: runner.os == 'Linux'
@@ -327,12 +358,11 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Restore Android build cache
-        uses: actions/cache/restore@v4
+      - name: Download Android debug APK
+        uses: actions/download-artifact@v4
         with:
+          name: android-debug-apk-${{ matrix.slug }}
           path: androidApp/build/outputs/apk/debug/
-          key: ${{ env.ANDROID_BUILD_CACHE_KEY }}
-          fail-on-cache-miss: true
 
       - name: Cache Android AVD snapshot
         id: avd-cache
@@ -408,18 +438,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs['plan-verification'].outputs.ios_matrix) }}
-    env:
-      IOS_BUILD_CACHE_KEY: ios-derived-data-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.slug }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK 21 (cached)
+        if: github.event_name != 'pull_request'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
           cache: gradle
+
+      - name: Set up JDK 21
+        if: github.event_name == 'pull_request'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
 
       - name: Run iOS XCTest suite
         shell: bash
@@ -427,12 +463,14 @@ jobs:
           set -euo pipefail
           IOS_SIMULATOR_NAME="${{ matrix.simulator_name }}" IOS_DEVICE_CLASS="${{ matrix.device_class }}" make ios-test
 
-      - name: Save iOS build cache for launch smoke
+      - name: Upload iOS build products for launch smoke
         if: success()
-        uses: actions/cache/save@v4
+        uses: actions/upload-artifact@v4
         with:
+          name: ios-build-products-${{ matrix.slug }}
           path: build/ios-derived-data/Build/Products/Debug-iphonesimulator/
-          key: ${{ env.IOS_BUILD_CACHE_KEY }}
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Upload iOS automated test diagnostics
         if: failure()
@@ -456,25 +494,30 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs['plan-verification'].outputs.ios_matrix) }}
-    env:
-      IOS_BUILD_CACHE_KEY: ios-derived-data-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.slug }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK 21 (cached)
+        if: github.event_name != 'pull_request'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
           cache: gradle
 
-      - name: Restore iOS build cache
-        uses: actions/cache/restore@v4
+      - name: Set up JDK 21
+        if: github.event_name == 'pull_request'
+        uses: actions/setup-java@v4
         with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Download iOS build products
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-build-products-${{ matrix.slug }}
           path: build/ios-derived-data/Build/Products/Debug-iphonesimulator/
-          key: ${{ env.IOS_BUILD_CACHE_KEY }}
-          fail-on-cache-miss: true
 
       - name: Run iOS launch smoke
         shell: bash
