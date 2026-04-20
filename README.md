@@ -220,6 +220,9 @@ Contributing quick links:
 - [docs/compliance.md](docs/compliance.md)
 - [docs/release-gate.md](docs/release-gate.md)
 
+Release process uses semantic version tags (`vMAJOR.MINOR.PATCH`) and
+`CHANGELOG.md` as the source for published release notes.
+
 Please avoid adding features that:
 
 - manage accounts for other people

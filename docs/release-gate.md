@@ -210,3 +210,17 @@ Required fields:
 | candidate_commit | verify_rc_run_id | reviewer | date_utc | decision | notes |
 | --- | --- | --- | --- | --- | --- |
 | `<sha>` | `<run_id>` | `release-manager` | `<YYYY-MM-DDTHH:MM:SSZ>` | `GO/NO-GO` | `<policy + App Store notes + evidence paths>` |
+
+## Tagging and Release Notes
+
+After a `GO` sign-off, create a semantic version tag on the approved
+`candidate_commit` and publish release notes.
+
+Policy:
+
+- Tags use `vMAJOR.MINOR.PATCH` format (for example `v1.2.3`).
+- `CHANGELOG.md` must be updated from `[Unreleased]` before publishing.
+- GitHub release notes should summarize user-visible changes and any known
+  limitations.
+- If a late blocker appears after tag preparation, do not publish; record
+  `NO-GO`, fix forward, and re-run `make verify-rc`.
