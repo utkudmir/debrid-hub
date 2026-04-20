@@ -159,7 +159,8 @@ CI quick notes:
 - `verification` workflow runs in phased jobs: plan, shared quality, Android static analysis/tests/smoke, iOS static analysis/tests/smoke, then the final gate.
 - Localization parity is validated in CI with `make localization-check`.
 - Non-mac orchestration phases (`plan-verification`, `final-verification-gate`) run on Ubuntu runners to reduce macOS minute consumption.
-- Dependabot triage can be run manually with the `dependabot-triage` workflow; it requests Copilot review when available, then closes individual Dependabot PRs with a maintenance note.
+- Dependabot checks run daily for GitHub Actions and Gradle; grouped dependency PRs are opened with low-noise batching.
+- New Dependabot PRs trigger `dependabot-auto-review`, which requests Copilot review (or posts `@copilot review` when explicit reviewer assignment is unavailable).
 
 ## Security and Privacy
 
