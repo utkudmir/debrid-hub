@@ -59,9 +59,9 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
                 implementation("io.ktor:ktor-client-core:2.3.12")
                 implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
                 implementation("io.ktor:ktor-client-logging:2.3.12")
@@ -78,7 +78,7 @@ kotlin {
             dependencies {
                 implementation("io.ktor:ktor-client-okhttp:2.3.12")
                 implementation("androidx.security:security-crypto:1.1.0-alpha06")
-                implementation("androidx.core:core-ktx:1.15.0")
+                implementation("androidx.core:core-ktx:1.18.0")
             }
         }
         val iosMain by creating {
