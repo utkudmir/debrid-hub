@@ -28,6 +28,7 @@ end
 
 def xml_escape(text)
   text.to_s
+    .gsub("\\", "\\\\")
     .gsub("&", "&amp;")
     .gsub("<", "&lt;")
     .gsub(">", "&gt;")
