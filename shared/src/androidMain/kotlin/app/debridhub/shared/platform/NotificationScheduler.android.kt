@@ -2,7 +2,6 @@ package app.debridhub.shared.platform
 
 import android.app.AlarmManager
 import android.app.PendingIntent
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -29,18 +28,15 @@ class NotificationSchedulerImpl(
         val ids = mutableSetOf<String>()
         reminders.forEach { reminder ->
             val notificationId = reminder.fireAt.epochSeconds.toInt()
-            val intent = Intent().apply {
-                component = ComponentName(context, ReminderAlarmReceiver::class.java)
-                setPackage(context.packageName)
-                action = ACTION_REMINDER_ALARM
-                putExtra(ReminderAlarmReceiver.EXTRA_NOTIFICATION_ID, notificationId)
-                putExtra(ReminderAlarmReceiver.EXTRA_MESSAGE, reminder.message)
-            }
+            val intent = Intent(ACTION_REMINDER_ALARM)
+                .setClassName(context.packageName, REMINDER_RECEIVER_CLASS)
+                .putExtra(ReminderAlarmReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+                .putExtra(ReminderAlarmReceiver.EXTRA_MESSAGE, reminder.message)
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
                 notificationId,
                 intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                PendingIntent.FLAG_IMMUTABLE
             )
             val triggerAtMillis = reminder.fireAt.toEpochMilliseconds()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -61,21 +57,20 @@ class NotificationSchedulerImpl(
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
                 notificationId,
-                Intent().apply {
-                    component = ComponentName(context, ReminderAlarmReceiver::class.java)
-                    setPackage(context.packageName)
-                    action = ACTION_REMINDER_ALARM
-                },
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                Intent(ACTION_REMINDER_ALARM).setClassName(context.packageName, REMINDER_RECEIVER_CLASS),
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
             )
-            alarmManager.cancel(pendingIntent)
-            pendingIntent.cancel()
+            if (pendingIntent != null) {
+                alarmManager.cancel(pendingIntent)
+                pendingIntent.cancel()
+            }
         }
         prefs.edit().remove(KEY_NOTIFICATION_IDS).apply()
     }
 
     private companion object {
         const val ACTION_REMINDER_ALARM = "app.debridhub.ACTION_REMINDER_ALARM"
+        const val REMINDER_RECEIVER_CLASS = "app.debridhub.shared.platform.ReminderAlarmReceiver"
         const val KEY_NOTIFICATION_IDS = "notification_ids"
     }
 }
