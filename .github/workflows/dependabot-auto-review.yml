@@ -6,14 +6,19 @@ on:
       - opened
       - reopened
       - ready_for_review
+      - synchronize
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 permissions:
   contents: read
+  issues: write
   pull-requests: write
 
 jobs:
   request-copilot-review:
-    if: github.event.pull_request.user.login == 'dependabot[bot]' && !github.event.pull_request.draft
+    if: contains(fromJSON('["app/dependabot","dependabot[bot]","dependabot"]'), github.event.pull_request.user.login) && !github.event.pull_request.draft
     runs-on: ubuntu-24.04
     steps:
       - name: Request Copilot review
@@ -23,6 +28,12 @@ jobs:
             const owner = context.repo.owner
             const repo = context.repo.repo
             const pull_number = context.payload.pull_request.number
+            const headSha = context.payload.pull_request.head.sha
+            const commentBody = [
+              `Automated note: requesting Copilot review for Dependabot head \`${headSha.slice(0, 7)}\`.`,
+              '',
+              '@copilot review'
+            ].join('\n')
 
             try {
               await github.rest.pulls.requestReviewers({
@@ -34,14 +45,25 @@ jobs:
               core.info('Copilot reviewer requested successfully.')
             } catch (error) {
               core.warning(`Copilot reviewer request failed: ${error.message}`)
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: pull_number,
-                body: [
-                  'Automated note: Could not request Copilot as an explicit reviewer for this repository.',
-                  '',
-                  '@copilot review'
-                ].join('\n')
-              })
             }
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: pull_number,
+              per_page: 100
+            })
+
+            const alreadyRequestedForHead = comments.some((comment) => comment.body === commentBody)
+            if (alreadyRequestedForHead) {
+              core.info(`Copilot review comment already exists for ${headSha.slice(0, 7)}.`)
+              return
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: pull_number,
+              body: commentBody
+            })
+            core.info('Posted @copilot review comment.')

@@ -160,7 +160,9 @@ CI quick notes:
 - Localization parity is validated in CI with `make localization-check`.
 - Non-mac orchestration phases (`plan-verification`, `final-verification-gate`) run on Ubuntu runners to reduce macOS minute consumption.
 - Dependabot checks run daily for GitHub Actions and Gradle; grouped dependency PRs are opened with low-noise batching.
-- New Dependabot PRs trigger `dependabot-auto-review`, which requests Copilot review (or posts `@copilot review` when explicit reviewer assignment is unavailable).
+- New Dependabot PRs trigger `dependabot-auto-review`, which requests Copilot review and posts `@copilot review` for the current head SHA.
+- Dependabot PRs are merged automatically only after a Copilot approval and a successful `Final verification gate`.
+- `cache-hygiene` runs twice daily to trim stale GitHub Actions caches.
 
 ## Security and Privacy
 
