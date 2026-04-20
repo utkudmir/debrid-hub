@@ -71,7 +71,9 @@ jobs:
 
             const hasCopilotApproval = reviews.some((review) => {
               const login = review.user?.login || ''
-              return review.state === 'APPROVED' && /copilot/i.test(login)
+              const isCopilotActor = /copilot/i.test(login)
+              const isApprovalOrComment = review.state === 'APPROVED' || review.state === 'COMMENTED'
+              return isCopilotActor && isApprovalOrComment
             })
 
             if (!hasCopilotApproval) {
