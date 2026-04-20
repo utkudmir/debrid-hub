@@ -170,7 +170,7 @@ dependencies {
     implementation("io.ktor:ktor-client-okhttp:2.3.12")
     implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1-0.6.x-compat")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
