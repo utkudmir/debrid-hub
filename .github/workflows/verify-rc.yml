@@ -149,7 +149,7 @@ jobs:
 
       - name: Upload shared diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: verification-diagnostics-shared
           path: |
@@ -184,7 +184,7 @@ jobs:
 
       - name: Upload Android static analysis diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: verification-diagnostics-android-static-analysis
           path: |
@@ -277,7 +277,7 @@ jobs:
 
       - name: Upload Android automated test diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: verification-diagnostics-android-tests-${{ matrix.slug }}
           path: |
@@ -359,7 +359,7 @@ jobs:
 
       - name: Upload Android launch smoke diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: verification-diagnostics-android-smoke-${{ matrix.slug }}
           path: build/rc-verify/android/${{ matrix.slug }}/
@@ -390,7 +390,7 @@ jobs:
 
       - name: Upload iOS static analysis diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: verification-diagnostics-ios-static-analysis
           path: .swiftlint.yml
@@ -436,7 +436,7 @@ jobs:
 
       - name: Upload iOS automated test diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: verification-diagnostics-ios-tests-${{ matrix.slug }}
           path: |
@@ -484,7 +484,7 @@ jobs:
 
       - name: Upload iOS launch smoke diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: verification-diagnostics-ios-smoke-${{ matrix.slug }}
           path: |
@@ -549,7 +549,7 @@ jobs:
 
       - name: Upload gate diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: verification-diagnostics-gate
           path: build/rc-verify/
