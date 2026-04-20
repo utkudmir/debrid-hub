@@ -24,7 +24,17 @@ generated_localizations_changed_since_project() {
 
 if ! command -v xcodegen >/dev/null 2>&1; then
   if [[ -d "$PROJECT_FILE" ]]; then
-    echo "xcodegen not found; using existing $PROJECT_FILE" >&2
+    if [[ "$FORCE_GENERATE" == "1" ]]; then
+      echo "xcodegen is required because FORCE_IOS_PROJECT_GENERATE=1 was set." >&2
+      echo "Install it with: brew install xcodegen" >&2
+      exit 1
+    fi
+
+    if [[ -f "$PBXPROJ_FILE" && "$PBXPROJ_FILE" -nt "$PROJECT_SPEC" ]] && ! generated_localizations_changed_since_project; then
+      exit 0
+    fi
+
+    echo "xcodegen not found; project may be stale relative to $PROJECT_SPEC." >&2
     echo "Install xcodegen to regenerate from $PROJECT_SPEC (brew install xcodegen)." >&2
     exit 0
   fi

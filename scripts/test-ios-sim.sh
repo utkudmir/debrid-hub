@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-$ROOT_DIR/build/ios-derived-data}"
+IOS_TEST_DESTINATION_TIMEOUT="${IOS_TEST_DESTINATION_TIMEOUT:-180}"
 SIMULATOR_NAME="${IOS_SIMULATOR_NAME:-}"
 SIMULATOR_UDID="${IOS_SIMULATOR_UDID:-}"
 IOS_DEVICE_CLASS="${IOS_DEVICE_CLASS:-latest-phone}"
@@ -64,5 +65,6 @@ xcodebuild \
   -scheme DebridHubHost \
   -configuration Debug \
   -destination "$DESTINATION" \
+  -destination-timeout "$IOS_TEST_DESTINATION_TIMEOUT" \
   -derivedDataPath "$DERIVED_DATA_PATH" \
   test

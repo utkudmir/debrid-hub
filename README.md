@@ -89,6 +89,12 @@ IOS_DEVICE_CLASS=latest-phone make ios-run
 
 Supported iOS classes: `latest-phone`, `small-phone`, `large-phone`.
 
+Tune iOS test destination waiting (default 180 seconds):
+
+```bash
+IOS_TEST_DESTINATION_TIMEOUT=300 make ios-test
+```
+
 Run the release-candidate verification gate:
 
 ```bash
