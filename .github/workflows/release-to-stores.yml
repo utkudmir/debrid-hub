@@ -24,7 +24,7 @@ jobs:
       - name: Download signed candidate artifacts
         uses: dawidd6/action-download-artifact@v11
         with:
-          workflow: build-release-candidate.yml
+          workflow: release-candidate-build.yml
           name: release-candidate-${{ inputs.release_tag }}
           path: candidate
 
@@ -59,7 +59,7 @@ jobs:
       - name: Download signed candidate artifacts
         uses: dawidd6/action-download-artifact@v11
         with:
-          workflow: build-release-candidate.yml
+          workflow: release-candidate-build.yml
           name: release-candidate-${{ inputs.release_tag }}
           path: candidate
 

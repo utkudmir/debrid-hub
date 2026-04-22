@@ -61,7 +61,9 @@ struct ContentView: View {
                     .padding(24)
                 }
             }
-            .navigationTitle(isTrustCenterOpen ? localized("common.trust_center") : localized("common.app_name"))
+            .navigationTitle(
+                isTrustCenterOpen ? localized("common.trust_center") : localized("common.app_name")
+            )
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if isTrustCenterOpen {

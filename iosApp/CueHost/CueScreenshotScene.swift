@@ -12,7 +12,8 @@ enum CueScreenshotScene: String {
         }
 
         let arguments = ProcessInfo.processInfo.arguments
-        guard let index = arguments.firstIndex(of: "--cue-screenshot-scene"), arguments.indices.contains(index + 1) else {
+        guard let index = arguments.firstIndex(of: "--cue-screenshot-scene"),
+              arguments.indices.contains(index + 1) else {
             return nil
         }
 
