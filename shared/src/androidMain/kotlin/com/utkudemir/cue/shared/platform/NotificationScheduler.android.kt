@@ -2,7 +2,6 @@ package com.utkudemir.cue.shared.platform
 
 import android.app.AlarmManager
 import android.app.PendingIntent
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -29,12 +28,10 @@ class NotificationSchedulerImpl(
         val ids = mutableSetOf<String>()
         reminders.forEach { reminder ->
             val notificationId = reminder.fireAt.epochSeconds.toInt()
-            val intent = Intent().apply {
-                component = ComponentName(context, ReminderAlarmReceiver::class.java)
-                setPackage(context.packageName)
+            val intent = Intent(context, ReminderAlarmReceiver::class.java).apply {
+                putExtra(ReminderAlarmReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+                putExtra(ReminderAlarmReceiver.EXTRA_MESSAGE, reminder.message)
             }
-                .putExtra(ReminderAlarmReceiver.EXTRA_NOTIFICATION_ID, notificationId)
-                .putExtra(ReminderAlarmReceiver.EXTRA_MESSAGE, reminder.message)
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
                 notificationId,
@@ -57,13 +54,11 @@ class NotificationSchedulerImpl(
         val ids = prefs.getStringSet(KEY_NOTIFICATION_IDS, emptySet()).orEmpty()
         ids.forEach { idString ->
             val notificationId = idString.toIntOrNull() ?: return@forEach
+            val intent = Intent(context, ReminderAlarmReceiver::class.java)
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
                 notificationId,
-                Intent().apply {
-                    component = ComponentName(context, ReminderAlarmReceiver::class.java)
-                    setPackage(context.packageName)
-                },
+                intent,
                 PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
             )
             if (pendingIntent != null) {
