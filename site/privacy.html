@@ -15,6 +15,7 @@
     <p>Cue uses Real-Debrid's official OAuth device flow and stores authentication state locally. Android uses encrypted storage. iOS uses Keychain-backed storage.</p>
     <p>Cue reads Real-Debrid account status from the authenticated <code>/rest/1.0/user</code> endpoint to show premium state, expiry date, and reminder timing.</p>
     <p>Reminder preferences and diagnostics previews stay on-device. Diagnostics export is manual and is not uploaded anywhere by Cue.</p>
+    <p>Disconnect removes local Cue authentication state and reminder artifacts. Cue does not create a separate backend account.</p>
     <h2>Data not collected</h2>
     <p>Cue does not include analytics, tracking, ad SDKs, or third-party crash reporting in v1.</p>
     <h2>Network behavior</h2>

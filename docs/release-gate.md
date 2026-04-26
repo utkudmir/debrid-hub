@@ -224,3 +224,16 @@ Policy:
   limitations.
 - If a late blocker appears after tag preparation, do not publish; record
   `NO-GO`, fix forward, and re-run `make verify-rc`.
+
+## Store Release Security Requirements
+
+- iOS submissions require `PrivacyInfo.xcprivacy` and the standard encryption
+  exemption answer for HTTPS/OAuth-only networking.
+- Signed candidate artifacts must be uploaded with SHA-256 checksums and verified
+  again before store upload.
+- Candidate artifact retention is 30 days.
+- Store upload workflows must use protected GitHub Environments and least-privilege
+  permissions.
+- App Store release remains manual after approval.
+- Google Play production rollout starts at 20% and only moves to 100% after clean
+  post-release signals.
