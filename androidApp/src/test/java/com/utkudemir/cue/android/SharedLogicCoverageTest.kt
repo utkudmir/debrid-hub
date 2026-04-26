@@ -222,7 +222,8 @@ class SharedLogicCoverageTest {
         val reminderRepository = ReminderRepositoryImpl(
             configStore = FakeSharedReminderConfigStore(ReminderConfig(enabled = true, daysBefore = setOf(7, 3), notifyOnExpiry = true)),
             planner = ReminderPlanner(),
-            notificationScheduler = scheduler
+            notificationScheduler = scheduler,
+            nowProvider = { fixedNow }
         )
         val accountStatus = sampleAccountStatus()
 
