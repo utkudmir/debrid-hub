@@ -1,107 +1,74 @@
 # Session Handoff
 
-## Durum Ozeti
-- CI billing/spending limiti acilana kadar CI/workflow tarafini parkta tutuyoruz.
-- Uygulama kodu ve testlerde Android/iOS parity + stability + coverage odaginda ilerliyoruz.
-- Coverage gate aktif: `LINE >= 70`, `BRANCH >= 55`.
-- iOS native XCTest altyapisi aktif ve `IOSAppViewModel` senaryo paritesi Android ile hizalandi.
+## Current Status
 
-## Son Tamamlanan Isler
+- Active release-readiness work is on branch `chore/store-release-readiness` and PR #20.
+- GitHub Environments exist for `production-app-store` and `production-play-store`.
+- Store upload secrets and `APPLE_DEVELOPMENT_TEAM_ID` have been added by name and verified through GitHub CLI.
+- GitHub rulesets exist for `main` and `v*` tags. Before tagging, ensure the tag ruleset does not block all tag creation.
+- Support email is `support.cue.app@gmail.com` across docs, site, and shared external links.
+- iOS privacy manifest is present at `iosApp/CueHost/PrivacyInfo.xcprivacy` and included in the Xcode project resources.
+- Release sign-off owner is `utkudmir` via `ci/device-pool.yml`.
 
-### 1) Pushlanan parity + auth stabilizasyonu
-- Commit: `67a360b` (`origin/main`)
-- iOS keychain `status=-50` gibi hatalarda sessiz self-heal.
-- iOS onboarding/polling terminal state cleanup.
-- Android/iOS akis ve mesaj parity iyilestirmeleri.
+## Latest Local Verification
 
-### 2) Pushlanan coverage/test guclendirme
-- Commit: `d261431` (`origin/main`)
-- Jacoco report + verification eklendi.
-- Baseline korumasi: `LINE >= 70`, `BRANCH >= 55`.
-- Shared + Android test kapsamı genisletildi.
-
-### 3) Pushlanan iOS native test boslugu kapatma
-- Commit: `41a162a` (`origin/main`)
-- `iosApp/project.yml` uzerinden XCTest target eklendi.
-- Xcode proje regenerate edildi.
-- `IOSAppViewModel` icin temel state-transition testleri eklendi.
-
-### 4) Pushlanan Android/iOS test parity hizalama
-- Commit: `ea1b832` (`origin/main`)
-- `IOSAppViewModelTests` kapsamı Android ViewModel senaryo seti ile hizalandi.
-- Mevcut durumda ViewModel test sayisi parity: Android 16 / iOS 16.
-
-### 5) Pushlanan lock-step TDD genisletmesi
-- Commit: `bf72f37` (`origin/main`)
-- `make ios-test` komutu ve `scripts/test-ios-sim.sh` eklendi.
-- Cancel authorization safety slice'i Android+iOS icin eklendi.
-- Diagnostics preview success slice'i Android+iOS icin eklendi.
-
-### 6) Pushlanan authenticated bootstrap lock-step slice
-- Commit: `8022b2a` (`origin/main`)
-- Android + iOS authenticated startup refresh/sync/preview davranisi testlendi.
-- ViewModel parity test matrisi bir sonraki faza hazirlandi.
-
-### 7) Bu tur tamamlanan kalan parity testleri
-- Duplicate/in-flight guardlari tamamlandi (`startAuthorization`, `loadDiagnosticsPreview`).
-- Reminder mutation matrix tamamlandi (`day toggles`, notify flagleri, invalid input no-op).
-- Notification edge parity tamamlandi (granted/denied/failure/already-enabled etkileri).
-- iOS tarafinda `openAppSettings` delegasyonu da native test ile guvenceye alindi.
-- Son test sayilari: Android ViewModel 28, iOS ViewModel 29 (iOS'ta 1 ek native delegasyon testi).
-
-### 8) Repo temizlik ve slimming
-- `composeApp/` legacy modulu repodan kaldirildi.
-- Local artifact temizligi icin `make clean-local` komutu eklendi.
-- Dokumanlar aktif module gercegine gore guncellendi.
-
-## Dogrulama Sonuclari (Son Session)
-- `make shared-test` -> PASS
-- `./gradlew :androidApp:lint :androidApp:testDebugUnitTest` -> PASS
-- `make ios-test` -> PASS
-- `make coverage` -> PASS
+- `make ios-project` -> PASS
 - `make ios-build` -> PASS
-- `xcodebuild ... -scheme CueHost ... test` -> PASS
+- `make security-scan-secrets` -> PASS
+- Workflow YAML parse via Ruby -> PASS
+- `ruby -c fastlane/Fastfile` -> PASS
+- `bash -n scripts/setup-github-release-controls.sh` -> PASS
+- `make github-release-controls` dry-run -> PASS
+- `git diff --check` -> PASS
 
-## Mevcut Local Durum
-- Calisma agaci temiz hedeflenir; yeni ise baslarken `git status` ile dogrula.
-- CI/workflow dosyalarina dokunma (billing limiti acilana kadar).
+## Release Readiness Scope
 
-## Sonraki Plan (Test Sonrasi)
-Kalan ana is paketi coverage esigini kontrollu artirmak.
+- App identity remains `com.utkudemir.cue` on iOS and Android.
+- Commercial model is paid upfront, no IAP/subscription in v1.
+- Store price target is 4.99 USD with automatic local pricing.
+- Store listing locale is `en-US` for v1.
+- Device scope is phone-only v1.
+- Reviewer access is demo mode only; do not share Real-Debrid credentials.
+- Legal URLs remain GitHub Pages v1.
 
-1. Coverage uplift hazirlik:
-   - Mevcut test matrisinde flakey risklerini gozle.
-   - Gerekirse sadece stabilite odakli kucuk refactor/test duzeltmeleri yap.
-2. Coverage hedef artisi (ayri degisiklik):
-   - `LINE >= 75`
-   - `BRANCH >= 60`
-3. Hedef artisindan sonra tam dogrulama:
-   - `make shared-test`
-   - `./gradlew :androidApp:lint :androidApp:testDebugUnitTest`
-   - `make ios-test`
-   - `make coverage`
+## Next Steps
 
-## Coverage Hedefi (Bir Sonraki Esik)
-- Mevcut baseline korunurken testler stabilize oldugunda bir sonraki hedef:
-  - `LINE >= 75`
-  - `BRANCH >= 60`
+1. Merge PR #20 after CI passes.
+2. Confirm GitHub tag ruleset permits the release owner to create signed `v*` tags.
+3. Confirm App Store Connect app setup manually:
+   - Bundle ID `com.utkudemir.cue`
+   - paid app agreements/tax/banking complete
+   - price 4.99 USD with automatic local pricing
+   - App Privacy and export compliance complete
+   - review notes use `store/app-store/review-notes.md`
+4. Confirm Google Play Console setup manually:
+   - package `com.utkudemir.cue`
+   - Play App Signing enabled
+   - paid app setup complete
+   - Data Safety/content rating/target audience complete
+   - internal and closed testing tracks ready
+5. Select a candidate commit and run `VERIFY_PROFILE=rc-full make verify-rc` or the equivalent CI manual run.
+6. Record local redacted evidence under `build/rc-verify/<run_id>/evidence/`.
+7. Create signed release tag only after GO sign-off.
+8. Run `build-release-candidate`, then `release-to-stores` for the same tag.
 
-## Teknik Notlar / Guardrail
-- Aktif Gradle modulleri: `:shared` ve `:androidApp`.
-- iOS proje source of truth: `iosApp/project.yml` (xcodeproj regenerate edilir).
+## Verification Commands
+
+- `make shared-test`
+- `./gradlew :androidApp:lint :androidApp:testDebugUnitTest`
+- `make coverage`
+- `make android-debug`
+- `make ios-build`
+- `make ios-test`
+- `make security-scan-secrets`
+- `VERIFY_PROFILE=rc-full make verify-rc`
+
+## Technical Guardrails
+
+- Active Gradle modules: `:shared` and `:androidApp`.
+- iOS project source of truth: `iosApp/project.yml`; regenerate with `make ios-project` after iOS project config edits.
 - iOS runtime: `CueApp.swift` -> `IOSAppViewModel.swift` -> `IosAppGraph` -> shared `CueController`.
 - Shared orchestration: `shared/src/commonMain/kotlin/com/utkudemir/cue/shared/CueController.kt`.
-- Product boundary koru: OAuth device flow + `/rest/1.0/user` + local reminders/diagnostics.
-- Eklenmeyecek alanlar: `/unrestrict/*`, `/downloads/*`, `/torrents/*`, `/streaming/*`.
-
-## Yeni Session Baslatma Promptu (Kopyala-Yapistir)
-```text
-Bu repo icin once docs/session-handoff.md dosyasini oku ve sadece oradaki plan uzerinden devam et.
-CI billing limiti acilana kadar CI/workflow tarafina dokunma; yalnizca uygulama kodu ve testlere odaklan.
-
-Android ve iOS testlerini TDD (RED->GREEN->REFACTOR) ve lock-step parity ile ilerlet.
-Her slice sonunda Android unit test, iOS XCTest ve coverage baseline dogrulamalarini calistir.
-
-Coverage baseline'i koru: line >= 70, branch >= 55.
-Slice'lar stabilize olunca 75/60 esigine gecis icin ayri bir degisiklik oner.
-```
+- Current product boundary: OAuth device flow + `/rest/1.0/user` + local reminders/diagnostics.
+- Do not add `/unrestrict/*`, `/downloads/*`, `/torrents/*`, or `/streaming/*` integrations without fresh compliance review.
+- Do not commit signing material, service-account JSON, release evidence, or generated base64 secret files.

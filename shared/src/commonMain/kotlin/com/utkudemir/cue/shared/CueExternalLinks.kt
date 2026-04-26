@@ -6,5 +6,5 @@ object CueExternalLinks {
     const val privacyPolicyUrl = "https://utkudmir.github.io/cue/privacy.html"
     const val supportUrl = "https://utkudmir.github.io/cue/support.html"
     const val reviewGuideUrl = "https://utkudmir.github.io/cue/review.html"
-    const val supportEmail = "cue.app.support@gmail.com"
+    const val supportEmail = "support.cue.app@gmail.com"
 }

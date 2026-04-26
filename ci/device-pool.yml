@@ -3,7 +3,7 @@ schema_version: 1
 defaults:
   android_package: com.utkudemir.cue
   ios_bundle_id: com.utkudemir.cue
-  signoff_owner: release-manager
+  signoff_owner: utkudmir
 
 profiles:
   local-fast:

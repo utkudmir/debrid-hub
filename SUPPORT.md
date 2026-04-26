@@ -10,7 +10,7 @@ Thanks for using Cue.
 
 ## Where to Ask for Help
 
-- **Support email:** `cue.app.support@gmail.com`
+- **Support email:** `support.cue.app@gmail.com`
 - **Bug reports:** open a `Bug report` issue.
 - **Feature ideas:** open a `Feature request` issue.
 - **Language requests:** open a `Language request` issue.

@@ -9,24 +9,52 @@ on:
         type: string
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
+  validate-input:
+    runs-on: ubuntu-24.04
+    outputs:
+      release_tag: ${{ steps.validate.outputs.release_tag }}
+    steps:
+      - name: Validate release tag
+        id: validate
+        run: |
+          set -euo pipefail
+          if [[ ! "$INPUT_RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "release_tag must match vMAJOR.MINOR.PATCH" >&2
+            exit 1
+          fi
+          echo "release_tag=$INPUT_RELEASE_TAG" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+
   app-store:
+    needs: validate-input
     runs-on: macos-15
     environment: production-app-store
+    env:
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
     steps:
       - name: Checkout approved tag
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.release_tag }}
+          ref: ${{ needs.validate-input.outputs.release_tag }}
 
-      - name: Download signed candidate artifacts
+      - name: Download signed iOS candidate artifact
         uses: dawidd6/action-download-artifact@v11
         with:
           workflow: release-candidate-build.yml
-          name: release-candidate-${{ inputs.release_tag }}
+          name: release-candidate-${{ inputs.release_tag }}-ios
           path: candidate
+
+      - name: Verify iOS candidate checksum
+        run: |
+          cd candidate
+          shasum -a 256 -c SHA256SUMS
 
       - name: Bundle install
         run: bundle install --path vendor/bundle
@@ -34,7 +62,7 @@ jobs:
       - name: Set release variables
         run: |
           echo "CUE_MARKETING_VERSION=${INPUT_TAG#v}" >> "$GITHUB_ENV"
-          echo "CUE_APP_STORE_BUILD_PATH=$(find "$PWD/candidate" -name '*.ipa' | head -n 1)" >> "$GITHUB_ENV"
+          echo "CUE_APP_STORE_BUILD_PATH=$(find "$PWD/candidate" -name '*.ipa' -print -quit)" >> "$GITHUB_ENV"
         env:
           INPUT_TAG: ${{ inputs.release_tag }}
 
@@ -48,20 +76,28 @@ jobs:
         run: bundle exec fastlane ios upload_build
 
   play-store:
+    needs: validate-input
     runs-on: ubuntu-24.04
     environment: production-play-store
+    env:
+      GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}
     steps:
       - name: Checkout approved tag
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.release_tag }}
+          ref: ${{ needs.validate-input.outputs.release_tag }}
 
-      - name: Download signed candidate artifacts
+      - name: Download signed Android candidate artifact
         uses: dawidd6/action-download-artifact@v11
         with:
           workflow: release-candidate-build.yml
-          name: release-candidate-${{ inputs.release_tag }}
+          name: release-candidate-${{ inputs.release_tag }}-android
           path: candidate
+
+      - name: Verify Android candidate checksum
+        run: |
+          cd candidate
+          shasum -a 256 -c SHA256SUMS
 
       - name: Bundle install
         run: bundle install --path vendor/bundle
@@ -69,7 +105,7 @@ jobs:
       - name: Set release variables
         run: |
           echo "CUE_MARKETING_VERSION=${INPUT_TAG#v}" >> "$GITHUB_ENV"
-          echo "CUE_PLAY_BUILD_PATH=$(find "$PWD/candidate" -name '*.aab' | head -n 1)" >> "$GITHUB_ENV"
+          echo "CUE_PLAY_BUILD_PATH=$(find "$PWD/candidate" -name '*.aab' -print -quit)" >> "$GITHUB_ENV"
         env:
           INPUT_TAG: ${{ inputs.release_tag }}
 

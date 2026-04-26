@@ -1,4 +1,4 @@
 app_identifier("com.utkudemir.cue")
-apple_id(ENV["APPLE_ID"] || "cue.app.support@gmail.com")
+apple_id(ENV["APPLE_ID"] || "support.cue.app@gmail.com")
 
 itc_team_id(ENV["APP_STORE_TEAM_ID"] || "")

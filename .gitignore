@@ -29,6 +29,7 @@ tools/screenshot-studio/.next/
 # Local env
 .env
 .env.*
+!.env.release.example
 local.properties
 
 # Credentials / signing material

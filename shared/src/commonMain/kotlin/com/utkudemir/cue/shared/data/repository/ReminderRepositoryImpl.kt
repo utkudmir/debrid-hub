@@ -8,11 +8,13 @@ import com.utkudemir.cue.shared.platform.NotificationScheduler
 import com.utkudemir.cue.shared.platform.ReminderConfigStore
 import com.utkudemir.cue.shared.reminders.ReminderPlanner
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 
 class ReminderRepositoryImpl(
     private val configStore: ReminderConfigStore,
     private val planner: ReminderPlanner,
-    private val notificationScheduler: NotificationScheduler
+    private val notificationScheduler: NotificationScheduler,
+    private val nowProvider: () -> Instant = { Clock.System.now() }
 ) : ReminderRepository {
     override suspend fun getConfig(): ReminderConfig = configStore.read()
 
@@ -22,7 +24,7 @@ class ReminderRepositoryImpl(
 
     override suspend fun previewReminders(accountStatus: AccountStatus): List<ScheduledReminder> =
         planner.planReminders(
-            now = Clock.System.now(),
+            now = nowProvider(),
             accountStatus = accountStatus,
             config = configStore.read()
         )

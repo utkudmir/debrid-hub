@@ -969,20 +969,27 @@ final class IOSAppViewModelTests: XCTestCase {
 
         await MainActor.run {
             viewModel.setNotifyOnExpiry(false)
+        }
+        await waitUntil(timeoutNanoseconds: 5_000_000_000) {
+            await MainActor.run {
+                service.updatedReminderSnapshots.contains(where: { !$0.notifyOnExpiry })
+            }
+        }
+
+        await MainActor.run {
             viewModel.setNotifyAfterExpiry(true)
         }
         await waitUntil(timeoutNanoseconds: 5_000_000_000) {
             await MainActor.run {
                 let snapshots = service.updatedReminderSnapshots
-                return snapshots.contains(where: { !$0.notifyOnExpiry }) &&
-                    snapshots.contains(where: { $0.notifyAfterExpiry })
+                return snapshots.contains(where: { !$0.notifyOnExpiry && $0.notifyAfterExpiry })
             }
         }
 
         await MainActor.run {
             let snapshots = service.updatedReminderSnapshots
             XCTAssertTrue(snapshots.contains(where: { !$0.notifyOnExpiry }))
-            XCTAssertTrue(snapshots.contains(where: { $0.notifyAfterExpiry }))
+            XCTAssertTrue(snapshots.contains(where: { !$0.notifyOnExpiry && $0.notifyAfterExpiry }))
         }
     }
 

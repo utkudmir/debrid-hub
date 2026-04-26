@@ -191,8 +191,9 @@ the sign-off table. Do not commit evidence files to git.
 
 ## Sign-Off (Single Owner)
 
-Only the configured `release-manager` reviewer can approve release sign-off.
+Only the configured release owner can approve release sign-off.
 
+The configured owner is loaded from `ci/device-pool.yml` (`defaults.signoff_owner`).
 If a different reviewer name appears in sign-off, decision is automatically
 `NO-GO`.
 
@@ -209,7 +210,7 @@ Required fields:
 
 | candidate_commit | verify_rc_run_id | reviewer | date_utc | decision | notes |
 | --- | --- | --- | --- | --- | --- |
-| `<sha>` | `<run_id>` | `release-manager` | `<YYYY-MM-DDTHH:MM:SSZ>` | `GO/NO-GO` | `<policy + App Store notes + evidence paths>` |
+| `<sha>` | `<run_id>` | `utkudmir` | `<YYYY-MM-DDTHH:MM:SSZ>` | `GO/NO-GO` | `<policy + App Store notes + evidence paths>` |
 
 ## Tagging and Release Notes
 
@@ -224,3 +225,16 @@ Policy:
   limitations.
 - If a late blocker appears after tag preparation, do not publish; record
   `NO-GO`, fix forward, and re-run `make verify-rc`.
+
+## Store Release Security Requirements
+
+- iOS submissions require `PrivacyInfo.xcprivacy` and the standard encryption
+  exemption answer for HTTPS/OAuth-only networking.
+- Signed candidate artifacts must be uploaded with SHA-256 checksums and verified
+  again before store upload.
+- Candidate artifact retention is 30 days.
+- Store upload workflows must use protected GitHub Environments and least-privilege
+  permissions.
+- App Store release remains manual after approval.
+- Google Play production rollout starts at 20% and only moves to 100% after clean
+  post-release signals.

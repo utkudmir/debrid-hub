@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		1E906C17122BA6BEF02535CD /* IOSAppViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5911D54BF8D2F54D053F38F0 /* IOSAppViewModel.swift */; };
 		2F900EF6F2DAF750E25B60BF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 972A842B5589E8C944F8CFE0 /* LaunchScreen.storyboard */; };
+		31596CBD388F7E75613CF9BC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 388E64354C3E0C2C923C24D6 /* PrivacyInfo.xcprivacy */; };
 		39C5F5C860AC3448F5E98F9D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 485F852B1E56255CFA7C89CB /* Assets.xcassets */; };
 		463142D5F67742D98153FB2B /* Shared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D3B0C7C5E834945E9CF5097F /* Shared.framework */; };
 		5F7AF24D6C02422BA6C25BF9 /* Shared.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D3B0C7C5E834945E9CF5097F /* Shared.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -65,6 +66,7 @@
 		2A55812557C1F982932DA7CD /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		355F2B28B54A0F54D87E8E31 /* CueApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CueApp.swift; sourceTree = "<group>"; };
 		37DBA7B55B10D0255AA9D4DF /* CueHost.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CueHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		388E64354C3E0C2C923C24D6 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		428BE266FB474FF7974F1A12 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		485F852B1E56255CFA7C89CB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5911D54BF8D2F54D053F38F0 /* IOSAppViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSAppViewModel.swift; sourceTree = "<group>"; };
@@ -150,6 +152,7 @@
 				5E5351C7571A112F612587E3 /* CueScreenshotScene.swift */,
 				5911D54BF8D2F54D053F38F0 /* IOSAppViewModel.swift */,
 				972A842B5589E8C944F8CFE0 /* LaunchScreen.storyboard */,
+				388E64354C3E0C2C923C24D6 /* PrivacyInfo.xcprivacy */,
 				8773C2A14F87F7A546014D0B /* Generated */,
 				9AC31699B5F908554015AE6D /* Resources */,
 			);
@@ -260,6 +263,7 @@
 				39C5F5C860AC3448F5E98F9D /* Assets.xcassets in Resources */,
 				2F900EF6F2DAF750E25B60BF /* LaunchScreen.storyboard in Resources */,
 				66D4F41430766849952DEA39 /* Localizable.strings in Resources */,
+				31596CBD388F7E75613CF9BC /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
