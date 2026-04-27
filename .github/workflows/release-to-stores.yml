@@ -45,7 +45,7 @@ jobs:
           ref: ${{ needs.validate-input.outputs.release_tag }}
 
       - name: Download signed iOS candidate artifact
-        uses: dawidd6/action-download-artifact@v11
+        uses: dawidd6/action-download-artifact@v20
         with:
           workflow: release-candidate-build.yml
           name: release-candidate-${{ inputs.release_tag }}-ios
@@ -88,7 +88,7 @@ jobs:
           ref: ${{ needs.validate-input.outputs.release_tag }}
 
       - name: Download signed Android candidate artifact
-        uses: dawidd6/action-download-artifact@v11
+        uses: dawidd6/action-download-artifact@v20
         with:
           workflow: release-candidate-build.yml
           name: release-candidate-${{ inputs.release_tag }}-android
