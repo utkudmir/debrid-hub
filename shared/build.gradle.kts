@@ -62,29 +62,29 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0-0.6.x-compat")
-                implementation("io.ktor:ktor-client-core:3.5.0")
-                implementation("io.ktor:ktor-client-content-negotiation:3.5.0")
-                implementation("io.ktor:ktor-client-logging:3.5.0")
-                implementation("io.ktor:ktor-serialization-kotlinx-json:3.5.0")
+                implementation("io.ktor:ktor-client-core:3.5.2")
+                implementation("io.ktor:ktor-client-content-negotiation:3.5.2")
+                implementation("io.ktor:ktor-client-logging:3.5.2")
+                implementation("io.ktor:ktor-serialization-kotlinx-json:3.5.2")
             }
         }
         named("commonTest") {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("io.ktor:ktor-client-mock:3.5.0")
+                implementation("io.ktor:ktor-client-mock:3.5.2")
             }
         }
         named("androidMain") {
             dependencies {
-                implementation("io.ktor:ktor-client-okhttp:3.5.0")
+                implementation("io.ktor:ktor-client-okhttp:3.5.2")
                 implementation("androidx.security:security-crypto:1.1.0-alpha06")
-                implementation("androidx.core:core-ktx:1.18.0")
+                implementation("androidx.core:core-ktx:1.19.0")
             }
         }
         val iosMain by creating {
             dependsOn(commonMain)
             dependencies {
-                implementation("io.ktor:ktor-client-darwin:3.5.0")
+                implementation("io.ktor:ktor-client-darwin:3.5.2")
             }
         }
         named("iosX64Main") { dependsOn(iosMain) }
